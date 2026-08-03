@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="src/HoSoMonitoring.Api/HoSoMonitoring.Api.csproj" />
+  <Project Path="src/HoSoMonitoring.Core/HoSoMonitoring.Core.csproj" />
+  <Project Path="src/HoSoMonitoring.Data/HoSoMonitoring.Data.csproj" />
+  <Project Path="src/HoSoMonitoring.WebApp/HoSoMonitoring.WebApp.csproj" />
+</Solution>
