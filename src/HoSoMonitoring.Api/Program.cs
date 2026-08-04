@@ -18,12 +18,13 @@ var connectionString = configuration
     ?? throw new InvalidOperationException(
         "Connection string 'DefaultConnection' not found.");
 
-// Config DbContext and Repository
+// Config DbContext and Repository and AutoMapper
 builder.Services.AddDbContext<HoSoMonitoringContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddScoped(typeof(IRepository<,>), typeof(RepositoryBase<,>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-builder.Services.AddAutoMapper(typeof(CaseInListDto));
+
+builder.Services.AddAutoMapper(cfg => { }, typeof(CaseInListDto).Assembly);
 
 // Business services and repositories
 var services = typeof(CaseRepository)
