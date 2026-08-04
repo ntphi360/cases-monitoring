@@ -5,6 +5,7 @@ using HoSoMonitoring.Core.SeedWorks;
 using HoSoMonitoring.Data.SeedWorks;
 using HoSoMonitoring.Core.Repositories;
 using HoSoMonitoring.Data.Repositories;
+using HoSoMonitoring.Core.Models.Content;
 
 
 
@@ -22,6 +23,7 @@ builder.Services.AddDbContext<HoSoMonitoringContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddScoped(typeof(IRepository<,>), typeof(RepositoryBase<,>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddAutoMapper(typeof(CaseInListDto));
 
 // Business services and repositories
 var services = typeof(CaseRepository)
