@@ -1,3 +1,4 @@
+using HoSoMonitoring.Api;
 using HoSoMonitoring.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -23,6 +24,9 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+//Seeding Data
+app.MigrateDatabase();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
