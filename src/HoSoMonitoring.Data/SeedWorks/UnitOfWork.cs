@@ -1,4 +1,5 @@
-﻿using HoSoMonitoring.Core.Repositories;
+﻿using AutoMapper;
+using HoSoMonitoring.Core.Repositories;
 using HoSoMonitoring.Core.SeedWorks;
 using HoSoMonitoring.Data.Repositories;
 
@@ -8,10 +9,12 @@ namespace HoSoMonitoring.Data.SeedWorks
     {
         private readonly HoSoMonitoringContext _context;
 
-        public UnitOfWork(HoSoMonitoringContext context)
+        public UnitOfWork(
+            HoSoMonitoringContext context,
+            IMapper mapper)
         {
             _context = context;
-            Cases = new CaseRepository(context);
+            Cases = new CaseRepository(context, mapper);
         }
 
         public ICaseRepository Cases { get; private set; }

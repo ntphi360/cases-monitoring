@@ -1,4 +1,8 @@
-﻿using HoSoMonitoring.Core.Content;
+﻿using AutoMapper;
+using AutoMapper.QueryableExtensions;
+using HoSoMonitoring.Core.Content;
+using HoSoMonitoring.Core.Models;
+using HoSoMonitoring.Core.Models.Content;
 using HoSoMonitoring.Core.Repositories;
 using HoSoMonitoring.Data.SeedWorks;
 using Microsoft.EntityFrameworkCore;
@@ -8,9 +12,14 @@ namespace HoSoMonitoring.Data.Repositories
     public class CaseRepository
         : RepositoryBase<Case, int>, ICaseRepository
     {
-        public CaseRepository(HoSoMonitoringContext context)
+        private readonly IMapper _mapper;
+
+        public CaseRepository(
+            HoSoMonitoringContext context,
+            IMapper mapper)
             : base(context)
         {
+            _mapper = mapper;
         }
 
         public async Task<List<Case>> GetOverdueCasesAsync(int count)
@@ -22,6 +31,40 @@ namespace HoSoMonitoring.Data.Repositories
                 .OrderBy(x => x.Deadline)
                 .Take(count)
                 .ToListAsync();
+        }
+
+        public async Task<PageResult<CaseInListDto>> GetAllPagingAsync(
+            string? keyword,
+            int pageIndex,
+            int pageSize)
+        {
+            var query = _context.Cases.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                query = query.Where(x =>
+                    x.ExternalCaseCode.Contains(keyword));
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var cases = await query
+                .OrderByDescending(x => x.CreatedAt)
+                .Skip((pageIndex - 1) * pageSize)
+                .Take(pageSize)
+                .ProjectTo<CaseInListDto>(
+                    _mapper.ConfigurationProvider)
+                .ToListAsync();
+
+            return new PageResult<CaseInListDto>
+            {
+                CurrentPage = pageIndex,
+                PageSize = pageSize,
+                TotalCount = totalCount,
+                TotalPages = (int)Math.Ceiling(
+                    totalCount / (double)pageSize),
+                Results = cases
+            };
         }
     }
 }
