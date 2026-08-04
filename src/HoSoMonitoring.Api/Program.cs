@@ -1,4 +1,20 @@
+using HoSoMonitoring.Data;
+using Microsoft.EntityFrameworkCore;
+
+
 var builder = WebApplication.CreateBuilder(args);
+
+var configuration = builder.Configuration;
+var connectionString = configuration
+    .GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException(
+        "Connection string 'DefaultConnection' not found.");
+
+// Config DbContext 
+builder.Services.AddDbContext<HoSoMonitoringContext>(options =>
+    options.UseSqlServer(connectionString));
+
+
 
 // Add services to the container.
 
