@@ -1,4 +1,6 @@
-﻿using HoSoMonitoring.Core.SeedWorks;
+﻿using HoSoMonitoring.Core.Repositories;
+using HoSoMonitoring.Core.SeedWorks;
+using HoSoMonitoring.Data.Repositories;
 
 namespace HoSoMonitoring.Data.SeedWorks
 {
@@ -9,7 +11,10 @@ namespace HoSoMonitoring.Data.SeedWorks
         public UnitOfWork(HoSoMonitoringContext context)
         {
             _context = context;
+            Cases = new CaseRepository(context);
         }
+
+        public ICaseRepository Cases { get; private set; }
 
         public async Task<int> CompleteAsync()
         {
