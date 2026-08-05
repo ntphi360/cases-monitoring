@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using HoSoMonitoring.Core.Content;
+using HoSoMonitoring.Core.Models;
 using HoSoMonitoring.Core.Models.Content;
 using HoSoMonitoring.Core.SeedWorks;
 using Microsoft.AspNetCore.Mvc;
@@ -21,18 +22,16 @@ namespace HoSoMonitoring.Api.Controllers
             _mapper = mapper;
         }
 
-        // GET /api/cases?pageIndex=1&pageSize=10
+        // GET /api/cases/paging?pageIndex=1&pageSize=10
         [HttpGet]
-        public async Task<IActionResult> GetCases(
-            [FromQuery] string? keyword,
-            [FromQuery] int pageIndex = 1,
-            [FromQuery] int pageSize = 10)
+        [Route("paging")]
+        public async Task<ActionResult<PageResult<CaseInListDto>>> GetCasesPaging(
+            string? keyword,
+            int pageIndex,
+            int pageSize = 10)
         {
             var result = await _unitOfWork.Cases
-                .GetAllPagingAsync(
-                    keyword,
-                    pageIndex,
-                    pageSize);
+                .GetAllPagingAsync(keyword, pageIndex, pageSize);
 
             return Ok(result);
         }
