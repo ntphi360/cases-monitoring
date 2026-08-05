@@ -87,3 +87,4 @@ Add-Migration TenMigration -StartupProject HoSoMonitoring.Api
 ```powershell
 Add-Migration AddCaseFields -StartupProject HoSoMonitoring.Api
 ```
+*(Sau khi tạo xong Migration, bạn chỉ cần Run App là dữ liệu và cấu trúc DB sẽ tự động cập nhật mà không cần gõ `Update-Database` mỗi khi dữ liệu có thay đổi).*
