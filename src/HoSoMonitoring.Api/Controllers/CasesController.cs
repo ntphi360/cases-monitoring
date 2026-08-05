@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using HoSoMonitoring.Core.Content;
+using HoSoMonitoring.Core.Enums;
 using HoSoMonitoring.Core.Models;
 using HoSoMonitoring.Core.Models.Content;
 using HoSoMonitoring.Core.SeedWorks;
@@ -23,25 +24,34 @@ namespace HoSoMonitoring.Api.Controllers
         }
 
         // GET /api/cases/paging?pageIndex=1&pageSize=10
-        [HttpGet]
-        [Route("paging")]
+        // GET /api/cases/paging?keyword=HS&departmentId=1&procedureId=1&status=1&pageIndex=1&pageSize=10
+        [HttpGet("paging")]
         public async Task<ActionResult<PageResult<CaseInListDto>>> GetCasesPaging(
-            string? keyword,
-            int pageIndex,
-            int pageSize = 10)
+            [FromQuery] string? keyword,
+            [FromQuery] int? departmentId,
+            [FromQuery] int? procedureId,
+            [FromQuery] CaseStatus? status,
+            [FromQuery] int pageIndex = 1,
+            [FromQuery] int pageSize = 10)
         {
             var result = await _unitOfWork.Cases
-                .GetAllPagingAsync(keyword, pageIndex, pageSize);
+                .GetAllPagingAsync(
+                    keyword,
+                    departmentId,
+                    procedureId,
+                    status,
+                    pageIndex,
+                    pageSize);
 
             return Ok(result);
         }
 
         // GET /api/cases/1
         [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetCaseById(int id)
+        public async Task<ActionResult<CaseDto>> GetCaseById(int id)
         {
-            var caseEntity =
-                await _unitOfWork.Cases.GetByIdAsync(id);
+            var caseEntity = await _unitOfWork.Cases
+                .GetByIdAsync(id);
 
             if (caseEntity == null)
             {
@@ -55,25 +65,25 @@ namespace HoSoMonitoring.Api.Controllers
 
         // GET /api/cases/overdue?count=10
         [HttpGet("overdue")]
-        public async Task<IActionResult> GetOverdueCases(
+        public async Task<ActionResult<List<CaseInListDto>>> GetOverdueCases(
             [FromQuery] int count = 10)
         {
             var cases = await _unitOfWork.Cases
                 .GetOverdueCasesAsync(count);
 
-            var result =
-                _mapper.Map<List<CaseInListDto>>(cases);
+            var result = _mapper
+                .Map<List<CaseInListDto>>(cases);
 
             return Ok(result);
         }
 
         // POST /api/cases
         [HttpPost]
-        public async Task<IActionResult> CreateCase(
+        public async Task<ActionResult<CaseDto>> CreateCase(
             [FromBody] CreateUpdateCaseRequest request)
         {
-            var caseEntity =
-                _mapper.Map<CreateUpdateCaseRequest, Case>(request);
+            var caseEntity = _mapper
+                .Map<CreateUpdateCaseRequest, Case>(request);
 
             caseEntity.CreatedAt = DateTime.Now;
 
@@ -91,12 +101,12 @@ namespace HoSoMonitoring.Api.Controllers
 
         // PUT /api/cases/1
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> UpdateCase(
+        public async Task<ActionResult<CaseDto>> UpdateCase(
             int id,
             [FromBody] CreateUpdateCaseRequest request)
         {
-            var caseEntity =
-                await _unitOfWork.Cases.GetByIdAsync(id);
+            var caseEntity = await _unitOfWork.Cases
+                .GetByIdAsync(id);
 
             if (caseEntity == null)
             {
@@ -118,8 +128,8 @@ namespace HoSoMonitoring.Api.Controllers
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> DeleteCase(int id)
         {
-            var caseEntity =
-                await _unitOfWork.Cases.GetByIdAsync(id);
+            var caseEntity = await _unitOfWork.Cases
+                .GetByIdAsync(id);
 
             if (caseEntity == null)
             {

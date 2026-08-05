@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using HoSoMonitoring.Core.Content;
+using HoSoMonitoring.Core.Enums;
 using HoSoMonitoring.Core.Models;
 using HoSoMonitoring.Core.Models.Content;
 using HoSoMonitoring.Core.Repositories;
@@ -32,11 +33,13 @@ namespace HoSoMonitoring.Data.Repositories
                 .Take(count)
                 .ToListAsync();
         }
-
         public async Task<PageResult<CaseInListDto>> GetAllPagingAsync(
-            string? keyword,
-            int pageIndex,
-            int pageSize)
+    string? keyword,
+    int? departmentId,
+    int? procedureId,
+    CaseStatus? status,
+    int pageIndex,
+    int pageSize)
         {
             var query = _context.Cases.AsQueryable();
 
@@ -44,6 +47,24 @@ namespace HoSoMonitoring.Data.Repositories
             {
                 query = query.Where(x =>
                     x.ExternalCaseCode.Contains(keyword));
+            }
+
+            if (departmentId.HasValue)
+            {
+                query = query.Where(x =>
+                    x.DepartmentId == departmentId.Value);
+            }
+
+            if (procedureId.HasValue)
+            {
+                query = query.Where(x =>
+                    x.ProcedureId == procedureId.Value);
+            }
+
+            if (status.HasValue)
+            {
+                query = query.Where(x =>
+                    x.Status == status.Value);
             }
 
             var totalCount = await query.CountAsync();
@@ -66,5 +87,6 @@ namespace HoSoMonitoring.Data.Repositories
                 Results = cases
             };
         }
+
     }
 }
