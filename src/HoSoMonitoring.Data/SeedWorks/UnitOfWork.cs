@@ -15,9 +15,21 @@ namespace HoSoMonitoring.Data.SeedWorks
         {
             _context = context;
             Cases = new CaseRepository(context, mapper);
+            Departments = new DepartmentRepository(context);
+            ProcedureFields = new ProcedureFieldRepository(context);
+            Procedures = new ProcedureRepository(context);
+            Users = new UserRepository(context);
         }
 
         public ICaseRepository Cases { get; private set; }
+
+        public IDepartmentRepository Departments { get; private set; }
+
+        public IProcedureFieldRepository ProcedureFields { get; private set; }
+
+        public IProcedureRepository Procedures { get; private set; }
+
+        public IUserRepository Users { get; private set; }
 
         public async Task<int> CompleteAsync()
         {

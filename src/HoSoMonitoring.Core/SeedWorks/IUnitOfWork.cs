@@ -6,6 +6,14 @@ namespace HoSoMonitoring.Core.SeedWorks
     {
         ICaseRepository Cases { get; }
 
+        IDepartmentRepository Departments { get; }
+
+        IProcedureFieldRepository ProcedureFields { get; }
+
+        IProcedureRepository Procedures { get; }
+
+        IUserRepository Users { get; }
+
         Task<int> CompleteAsync();
     }
 }
