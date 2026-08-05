@@ -1,7 +1,11 @@
-﻿namespace HoSoMonitoring.Core.SeedWorks
+﻿using HoSoMonitoring.Core.Repositories;
+
+namespace HoSoMonitoring.Core.SeedWorks
 {
-    public interface IUnitOfWork : IDisposable
+    public interface IUnitOfWork
     {
+        ICaseRepository Cases { get; }
+
         Task<int> CompleteAsync();
     }
 }
