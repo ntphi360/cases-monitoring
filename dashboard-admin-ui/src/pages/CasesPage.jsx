@@ -1,9 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Eye, Filter, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { useSelector } from "react-redux";
 
 import {
-  cases as initialCases,
   caseHistories as initialCaseHistories,
   caseStatuses,
   departments,
@@ -13,9 +12,40 @@ import {
   statusKeys,
   users,
 } from "../data/caseData";
+import { getCases } from "../services/caseService";
 import "./CasesPage.css";
 
 const PAGE_SIZE = 10;
+
+const apiCaseStatuses = {
+  1: "Mới tiếp nhận",
+  2: "Đang xử lý",
+  3: "Chờ xử lý",
+  4: "Đã hoàn thành",
+  5: "Quá hạn",
+  6: "Đã hủy",
+};
+
+function mapApiCase(item) {
+  return {
+    id: item.id,
+    caseCode: item.externalCaseCode,
+    caseName: item.applicantName,
+    receivedDate: item.receivedAt,
+    dueDate: item.deadline,
+    appointmentReturnDate: item.appointmentDate,
+    completedDate: item.completedAt,
+    status: apiCaseStatuses[item.status] ?? "Không xác định",
+    processingDays: item.processingDays,
+    priority: item.priority,
+    currentStepName: item.currentStepName,
+    fieldId: "",
+    procedureId: "",
+    departmentId: "",
+    assignedUserId: "",
+    note: "",
+  };
+}
 
 const emptyFilters = {
   search: "",
@@ -156,7 +186,7 @@ function getCaseFormValues(caseItem) {
     assignedUserId: caseItem.assignedUserId,
     receivedDate: caseItem.receivedDate,
     dueDate: caseItem.dueDate.slice(0, 10),
-    appointmentReturnDate: caseItem.appointmentReturnDate.slice(0, 16),
+    appointmentReturnDate: caseItem.appointmentReturnDate?.slice(0, 16) ?? "",
     status: caseItem.status,
     note: caseItem.note,
   };
@@ -320,7 +350,9 @@ function DeleteCaseConfirm({ caseItem, onClose, onConfirm }) {
 function CasesPage() {
   const currentRole = useSelector((state) => state.auth.user?.role ?? "ADMIN");
   const isAdmin = String(currentRole).toUpperCase() === "ADMIN";
-  const [caseList, setCaseList] = useState(initialCases);
+  const [caseList, setCaseList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [historyList, setHistoryList] = useState(initialCaseHistories);
   const [draftFilters, setDraftFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
@@ -329,6 +361,27 @@ function CasesPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [editingCase, setEditingCase] = useState(null);
   const [deletingCase, setDeletingCase] = useState(null);
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    getCases({ pageIndex: 1, pageSize: 100 })
+      .then((response) => {
+        if (!isCurrent) return;
+        setCaseList((response.results ?? []).map(mapApiCase));
+      })
+      .catch((error) => {
+        if (!isCurrent) return;
+        setLoadError(error.message || "Không thể tải dữ liệu hồ sơ.");
+      })
+      .finally(() => {
+        if (isCurrent) setLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
 
   const filteredProcedures = procedures.filter((item) => !draftFilters.fieldId || item.fieldId === draftFilters.fieldId);
   const filteredUsers = users.filter((item) => !draftFilters.departmentId || item.departmentId === draftFilters.departmentId);
@@ -492,6 +545,16 @@ function CasesPage() {
               </tr>
             </thead>
             <tbody>
+              {loading && (
+                <tr>
+                  <td className="cases-table__empty" colSpan="10">Đang tải dữ liệu hồ sơ...</td>
+                </tr>
+              )}
+              {!loading && loadError && (
+                <tr>
+                  <td className="cases-table__empty" colSpan="10" role="alert">Lỗi: {loadError}</td>
+                </tr>
+              )}
               {pageCases.map((caseItem) => {
                 const { department, field, procedure, user } = getCaseRelations(caseItem);
                 return (
@@ -515,7 +578,7 @@ function CasesPage() {
                   </tr>
                 );
               })}
-              {!pageCases.length && <tr><td className="cases-table__empty" colSpan="10">Không tìm thấy hồ sơ phù hợp.</td></tr>}
+              {!loading && !loadError && !pageCases.length && <tr><td className="cases-table__empty" colSpan="10">Không tìm thấy hồ sơ phù hợp.</td></tr>}
             </tbody>
           </table>
         </div>
