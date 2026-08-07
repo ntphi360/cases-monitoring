@@ -14,6 +14,10 @@ namespace HoSoMonitoring.Core.SeedWorks
 
         IUserRepository Users { get; }
 
+        ICaseAssignmentRepository CaseAssignments { get; }
+
+        ICaseHistoryRepository CaseHistories { get; }
+
         Task<int> CompleteAsync();
     }
 }
