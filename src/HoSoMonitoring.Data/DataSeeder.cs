@@ -6,6 +6,7 @@ namespace HoSoMonitoring.Data
     {
         public async Task SeedAsync(HoSoMonitoringContext context)
         {
+            // 1. Seed Department
             if (!context.Departments.Any())
             {
                 await context.Departments.AddAsync(new Department
@@ -20,6 +21,28 @@ namespace HoSoMonitoring.Data
                 await context.SaveChangesAsync();
             }
 
+            // 2. Seed User
+            if (!context.Users.Any())
+            {
+                var department = context.Departments
+                    .First(x => x.Code == "ROOT");
+
+                await context.Users.AddAsync(new User
+                {
+                    Username = "admin",
+                    FullName = "Quản trị hệ thống",
+                    Email = "admin@example.com",
+                    PhoneNumber = "0900000000",
+                    DepartmentId = department.Id,
+                    ExternalUserCode = "ADMIN001",
+                    IsActive = true,
+                    CreatedAt = DateTime.Now
+                });
+
+                await context.SaveChangesAsync();
+            }
+
+            // 3. Seed ProcedureField
             if (!context.ProcedureFields.Any())
             {
                 await context.ProcedureFields.AddAsync(new ProcedureField
@@ -32,6 +55,7 @@ namespace HoSoMonitoring.Data
                 await context.SaveChangesAsync();
             }
 
+            // 4. Seed Procedure
             if (!context.Procedures.Any())
             {
                 var field = context.ProcedureFields
