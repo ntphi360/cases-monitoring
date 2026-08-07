@@ -37,11 +37,15 @@ namespace HoSoMonitoring.Data
                 var field = context.ProcedureFields
                     .First(x => x.Code == "HOTICH");
 
+                var department = context.Departments
+                    .First(x => x.Code == "ROOT");
+
                 await context.Procedures.AddAsync(new Procedure
                 {
                     Code = "DKKS",
                     Name = "Đăng ký khai sinh",
                     ProcedureFieldId = field.Id,
+                    DepartmentId = department.Id,
                     DefaultProcessingHours = 8,
                     IsActive = true,
                     CreatedAt = DateTime.Now

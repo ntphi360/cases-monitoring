@@ -11,6 +11,10 @@ namespace HoSoMonitoring.Core.Models.Content
         [MaxLength(100)]
         public string ExternalCaseCode { get; set; } = string.Empty;
 
+        [Required]
+        [MaxLength(250)]
+        public string ApplicantName { get; set; } = string.Empty;
+
         [Range(1, int.MaxValue)]
         public int ProcedureId { get; set; }
 
@@ -19,7 +23,12 @@ namespace HoSoMonitoring.Core.Models.Content
 
         public DateTime ReceivedAt { get; set; }
 
+        public DateTime? AppointmentDate { get; set; }
+
         public DateTime Deadline { get; set; }
+
+        [Range(0, int.MaxValue)]
+        public int? ProcessingDays { get; set; }
 
         public CaseStatus Status { get; set; }
 

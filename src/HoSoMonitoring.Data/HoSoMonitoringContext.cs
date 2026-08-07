@@ -58,6 +58,13 @@ namespace HoSoMonitoring.Data
                 .HasForeignKey(x => x.ProcedureFieldId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Một thủ tục hành chính thuộc một phòng ban phụ trách.
+            builder.Entity<Procedure>()
+                .HasOne(x => x.Department)
+                .WithMany()
+                .HasForeignKey(x => x.DepartmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // Một thủ tục hành chính có nhiều hồ sơ.
             builder.Entity<Case>()
                 .HasOne(x => x.Procedure)

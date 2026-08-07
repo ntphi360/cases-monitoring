@@ -18,6 +18,10 @@ public class Case
     public required string ExternalCaseCode { get; set; }
 
     [Required]
+    [MaxLength(250)]
+    public string ApplicantName { get; set; } = string.Empty;
+
+    [Required]
     public int ProcedureId { get; set; }
 
     // Đơn vị hiện chịu trách nhiệm xử lý hồ sơ.
@@ -25,8 +29,10 @@ public class Case
     public int DepartmentId { get; set; }
 
     public DateTime ReceivedAt { get; set; }
+    public DateTime? AppointmentDate { get; set; }
     public DateTime Deadline { get; set; }
     public DateTime? CompletedAt { get; set; }
+    public int? ProcessingDays { get; set; }
     public CaseStatus Status { get; set; }
     public CasePriority Priority { get; set; }
     public int? CurrentAssigneeId { get; set; }

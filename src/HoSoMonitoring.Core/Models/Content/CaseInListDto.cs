@@ -10,11 +10,17 @@ public class CaseInListDto
 
     public string ExternalCaseCode { get; set; } = string.Empty;
 
+    public string ApplicantName { get; set; } = string.Empty;
+
     public DateTime ReceivedAt { get; set; }
+
+    public DateTime? AppointmentDate { get; set; }
 
     public DateTime Deadline { get; set; }
 
     public DateTime? CompletedAt { get; set; }
+
+    public int? ProcessingDays { get; set; }
 
     public CaseStatus Status { get; set; }
 

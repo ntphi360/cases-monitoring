@@ -9,6 +9,7 @@ public class ProcedureDto
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public int ProcedureFieldId { get; set; }
+    public int DepartmentId { get; set; }
     public int DefaultProcessingHours { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }

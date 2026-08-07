@@ -23,10 +23,14 @@ public class Procedure
     [Required]
     public int ProcedureFieldId { get; set; }
 
+    [Required]
+    public int DepartmentId { get; set; }
+
     // Thời gian xử lý chuẩn của thủ tục, tính theo giờ.
     public int DefaultProcessingHours { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public ProcedureField? ProcedureField { get; set; }
+    public Department? Department { get; set; }
 }
