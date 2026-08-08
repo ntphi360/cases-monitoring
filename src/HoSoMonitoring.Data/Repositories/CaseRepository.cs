@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using AutoMapper.QueryableExtensions;
+using HoSoMonitoring.Core.Configurations;
 using HoSoMonitoring.Core.Content;
 using HoSoMonitoring.Core.Enums;
 using HoSoMonitoring.Core.Models;
@@ -14,13 +15,16 @@ namespace HoSoMonitoring.Data.Repositories
         : RepositoryBase<Case, int>, ICaseRepository
     {
         private readonly IMapper _mapper;
+        private readonly AdministrativeUnitOptions _administrativeUnit;
 
         public CaseRepository(
             HoSoMonitoringContext context,
-            IMapper mapper)
+            IMapper mapper,
+            AdministrativeUnitOptions administrativeUnit)
             : base(context)
         {
             _mapper = mapper;
+            _administrativeUnit = administrativeUnit;
         }
 
         public async Task<List<Case>> GetOverdueCasesAsync(int count)
@@ -40,12 +44,12 @@ namespace HoSoMonitoring.Data.Repositories
                 item.ExternalCaseCode == externalCaseCode);
         }
         public async Task<PageResult<CaseInListDto>> GetAllPagingAsync(
-    string? keyword,
-    int? departmentId,
-    int? procedureId,
-    CaseStatus? status,
-    int pageIndex,
-    int pageSize)
+            string? keyword,
+            int? departmentId,
+            int? procedureId,
+            CaseStatus? status,
+            int pageIndex,
+            int pageSize)
         {
             var query = _context.Cases.AsQueryable();
 
@@ -82,6 +86,11 @@ namespace HoSoMonitoring.Data.Repositories
                 .ProjectTo<CaseInListDto>(
                     _mapper.ConfigurationProvider)
                 .ToListAsync();
+
+            foreach (var caseDto in cases)
+            {
+                caseDto.OrganizationName = _administrativeUnit.OrganizationName;
+            }
 
             return new PageResult<CaseInListDto>
             {

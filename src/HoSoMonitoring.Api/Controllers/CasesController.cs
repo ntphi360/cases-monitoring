@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using HoSoMonitoring.Core.Content;
+using HoSoMonitoring.Core.Configurations;
 using HoSoMonitoring.Core.Enums;
 using HoSoMonitoring.Core.Models;
 using HoSoMonitoring.Core.Models.Content;
@@ -21,17 +22,20 @@ namespace HoSoMonitoring.Api.Controllers
         private readonly IMapper _mapper;
         private readonly ICaseCodeParser _caseCodeParser;
         private readonly ICaseCodeGenerator _caseCodeGenerator;
+        private readonly AdministrativeUnitOptions _administrativeUnit;
 
         public CasesController(
             IUnitOfWork unitOfWork,
             IMapper mapper,
             ICaseCodeParser caseCodeParser,
-            ICaseCodeGenerator caseCodeGenerator)
+            ICaseCodeGenerator caseCodeGenerator,
+            AdministrativeUnitOptions administrativeUnit)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _caseCodeParser = caseCodeParser;
             _caseCodeGenerator = caseCodeGenerator;
+            _administrativeUnit = administrativeUnit;
         }
 
         // GET /api/cases/paging?pageIndex=1&pageSize=10
@@ -210,6 +214,8 @@ namespace HoSoMonitoring.Api.Controllers
 
         private void ApplyCaseCodeInfo(CaseDto caseDto)
         {
+            caseDto.OrganizationName = _administrativeUnit.OrganizationName;
+
             var caseCodeInfo = _caseCodeParser.Parse(caseDto.ExternalCaseCode);
             if (!caseCodeInfo.IsValid)
             {
