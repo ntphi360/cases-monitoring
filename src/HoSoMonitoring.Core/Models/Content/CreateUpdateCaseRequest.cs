@@ -7,13 +7,15 @@ namespace HoSoMonitoring.Core.Models.Content
 {
     public class CreateUpdateCaseRequest
     {
-        [Required]
         [MaxLength(100)]
-        public string ExternalCaseCode { get; set; } = string.Empty;
+        public string? ExternalCaseCode { get; set; }
 
         [Required]
         [MaxLength(250)]
         public string ApplicantName { get; set; } = string.Empty;
+
+        [MaxLength(250)]
+        public string? OrganizationName { get; set; }
 
         [Range(1, int.MaxValue)]
         public int ProcedureId { get; set; }

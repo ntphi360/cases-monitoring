@@ -32,6 +32,9 @@ namespace HoSoMonitoring.Data
         // Lịch sử thay đổi trạng thái hồ sơ
         public DbSet<CaseHistory> CaseHistories { get; set; }
 
+        // Phân quyền cán bộ theo lĩnh vực thủ tục hành chính
+        public DbSet<UserProcedureField> UserProcedureFields { get; set; }
+
         // orm
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -57,6 +60,22 @@ namespace HoSoMonitoring.Data
                 .WithMany()
                 .HasForeignKey(x => x.ProcedureFieldId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<UserProcedureField>()
+                .HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<UserProcedureField>()
+                .HasOne(x => x.ProcedureField)
+                .WithMany()
+                .HasForeignKey(x => x.ProcedureFieldId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<UserProcedureField>()
+                .HasIndex(x => new { x.UserId, x.ProcedureFieldId })
+                .IsUnique();
 
             // Một thủ tục hành chính thuộc một phòng ban phụ trách.
             builder.Entity<Procedure>()

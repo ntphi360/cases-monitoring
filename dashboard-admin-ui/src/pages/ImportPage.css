@@ -1,0 +1,92 @@
+.data-transfer-page { width: 100%; min-width: 0; margin: 0 auto; padding-bottom: 16px; }
+.data-transfer-page__heading { margin-bottom: 14px; }
+.data-transfer-page__heading h1 { margin: 0; color: #172554; font-size: 24px; line-height: 1.25; letter-spacing: -.02em; }
+.data-transfer-page__heading p { margin: 4px 0 0; color: #718096; font-size: 12px; line-height: 1.5; }
+
+.transfer-card { min-width: 0; overflow: hidden; background: #fff; border: 1px solid #e4eaf2; border-radius: 10px; box-shadow: 0 3px 10px rgba(32, 56, 85, .045); }
+.transfer-card--export { margin-top: 12px; }
+.transfer-card__header { display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 15px; border-bottom: 1px solid #edf1f6; }
+.transfer-card__header > div { display: flex; min-width: 0; align-items: center; gap: 10px; }
+.transfer-card__header h2 { margin: 0; color: #1e2d52; font-size: 13px; }
+.transfer-card__header p { margin: 2px 0 0; color: #8a97aa; font-size: 10px; }
+.transfer-card__icon { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; color: #1768dc; background: #eaf3ff; border-radius: 8px; }
+.transfer-card__icon--green { color: #178b54; background: #e8f7ef; }
+.transfer-card__body { padding: 15px; }
+
+.transfer-button { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; gap: 6px; padding: 0 12px; border: 1px solid transparent; border-radius: 7px; font-size: 11px; font-weight: 650; cursor: pointer; }
+.transfer-button:disabled { opacity: .58; cursor: not-allowed; }
+.transfer-button--primary { color: #fff; background: #1269e8; box-shadow: 0 3px 8px rgba(18, 105, 232, .14); }
+.transfer-button--primary:hover:not(:disabled) { background: #0d5fd4; }
+.transfer-button--secondary { color: #52627a; background: #fff; border-color: #dce4ee; }
+.transfer-button--secondary:hover { color: #1768dc; background: #f8fbff; }
+.transfer-button--green { background: #16935a; }
+.transfer-button--green:hover:not(:disabled) { background: #12804d; }
+
+.file-dropzone { display: flex; width: 100%; min-height: 138px; align-items: center; justify-content: center; flex-direction: column; gap: 7px; padding: 20px; color: #58708f; background: #f9fbfe; border: 1px dashed #a9bfd9; border-radius: 9px; cursor: pointer; }
+.file-dropzone:hover:not(:disabled) { color: #1768dc; background: #f5f9ff; border-color: #6f9bd1; }
+.file-dropzone strong { color: #334b69; font-size: 12px; }
+.file-dropzone span { color: #8a97aa; font-size: 10px; }
+.file-dropzone--loading { cursor: wait; }
+.transfer-file-input { display: none; }
+.transfer-spinner { animation: transfer-spin .8s linear infinite; }
+@keyframes transfer-spin { to { transform: rotate(360deg); } }
+
+.selected-file-info { display: flex; align-items: center; gap: 9px; margin-top: 11px; padding: 9px 11px; color: #52627a; background: #f8fafc; border: 1px solid #e8edf4; border-radius: 8px; }
+.selected-file-info > div { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.selected-file-info strong { overflow: hidden; color: #33445f; font-size: 10.5px; text-overflow: ellipsis; white-space: nowrap; }
+.selected-file-info span { color: #8a97aa; font-size: 9.5px; }
+.transfer-state { margin-left: auto; padding: 4px 7px; border-radius: 5px; font-size: 9px !important; font-weight: 650; white-space: nowrap; }
+.transfer-state--ready, .transfer-state--success, .transfer-state--selected { color: #178b54 !important; background: #e8f7ef; }
+.transfer-state--reading, .transfer-state--importing { color: #1768dc !important; background: #eaf3ff; }
+.transfer-state--error { color: #df303b !important; background: #ffedef; }
+
+.transfer-message { margin: 11px 15px 0; padding: 8px 10px; border: 1px solid; border-radius: 7px; font-size: 10.5px; line-height: 1.45; }
+.transfer-card__body > .transfer-message { margin-inline: 0; }
+.transfer-message--error { color: #c92f39; background: #fff2f3; border-color: #f3cdd1; }
+.transfer-message--success { color: #167849; background: #eaf8f1; border-color: #ccebdc; }
+.transfer-message--warning { color: #ad5a12; background: #fff8eb; border-color: #f2dfbd; }
+
+.preview-section { border-top: 1px solid #edf1f6; }
+.preview-section__heading { display: flex; min-height: 55px; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 15px; }
+.preview-section__heading h3 { margin: 0; color: #1e2d52; font-size: 12px; }
+.preview-section__heading p { margin: 2px 0 0; color: #8a97aa; font-size: 9.5px; }
+.preview-table-wrap { width: 100%; max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
+.preview-table { width: max-content; min-width: 100%; border-collapse: collapse; color: #52627a; font-size: 10px; text-align: left; }
+.preview-table th { padding: 8px 12px; color: #7a889c; background: #fafbfd; border-block: 1px solid #e9eef5; font-size: 9px; font-weight: 700; letter-spacing: .025em; text-transform: uppercase; white-space: nowrap; }
+.preview-table td { max-width: 220px; padding: 8px 12px; overflow: hidden; border-bottom: 1px solid #edf1f6; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.preview-table tbody tr:hover { background: #f8fbff; }
+.import-result { padding-bottom: 15px; border-top: 1px solid #edf1f6; }
+.import-result__summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 15px; }
+.import-result__summary > div { display: flex; min-width: 0; flex-direction: column; gap: 3px; padding: 11px 12px; background: #f8fafc; border: 1px solid #e8edf4; border-radius: 8px; }
+.import-result__summary span { color: #7a889c; font-size: 9.5px; font-weight: 650; text-transform: uppercase; }
+.import-result__summary strong { color: #1e2d52; font-size: 19px; }
+.import-result__summary > div:nth-child(2) strong { color: #178b54; }
+.import-result__summary > div:nth-child(3) strong { color: #c92f39; }
+.import-result > .transfer-message { margin-bottom: 0; }
+.preview-empty-state { display: flex; min-height: 150px; align-items: center; justify-content: center; flex-direction: column; gap: 6px; padding: 24px; color: #9aa7b8; background: #fbfcfe; border-top: 1px solid #edf1f6; text-align: center; }
+.preview-empty-state strong { color: #52627a; font-size: 11px; }
+.preview-empty-state span { font-size: 10px; line-height: 1.45; }
+
+.export-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 15px; }
+.export-form > label { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
+.export-form label > span, .export-format legend { color: #52627a; font-size: 10px; font-weight: 650; }
+.export-form input[type="date"], .export-form select { width: 100%; min-height: 34px; padding: 0 10px; color: #33445f; background: #fff; border: 1px solid #dce4ee; border-radius: 7px; outline: none; font: inherit; font-size: 11px; }
+.export-form select:disabled { color: #8a97aa; background: #f7f9fc; cursor: not-allowed; }
+.export-form input[type="date"]:focus, .export-form select:focus { border-color: #6ba4f2; box-shadow: 0 0 0 3px rgba(18, 105, 232, .08); }
+.export-format { display: flex; min-width: 0; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin: 0; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 7px; }
+.export-format legend { padding-inline: 4px; }
+.export-format label { display: inline-flex; align-items: center; gap: 5px; color: #52627a; font-size: 10px; }
+.export-format input { accent-color: #1269e8; }
+.export-form__actions { display: flex; align-items: flex-end; justify-content: flex-end; gap: 8px; grid-column: span 3; }
+.transfer-card--export > .transfer-message:last-child { margin-bottom: 15px; }
+
+@media (max-width: 1100px) { .export-form { grid-template-columns: repeat(3, minmax(0, 1fr)); } .export-form__actions { grid-column: span 2; } }
+@media (max-width: 760px) { .export-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } .export-form__actions { grid-column: 1 / -1; } }
+@media (max-width: 520px) {
+  .data-transfer-page__heading h1 { font-size: 22px; }
+  .transfer-card__header, .preview-section__heading { align-items: flex-start; flex-direction: column; }
+  .export-form { grid-template-columns: 1fr; }
+  .export-form__actions { align-items: stretch; flex-direction: column-reverse; grid-column: auto; }
+  .export-form__actions .transfer-button { width: 100%; }
+  .import-result__summary { grid-template-columns: 1fr; }
+}

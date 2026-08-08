@@ -21,6 +21,7 @@ namespace HoSoMonitoring.Data.SeedWorks
             Users = new UserRepository(context);
             CaseAssignments = new CaseAssignmentRepository(context);
             CaseHistories = new CaseHistoryRepository(context);
+            UserProcedureFields = new UserProcedureFieldRepository(context);
         }
 
         public ICaseRepository Cases { get; private set; }
@@ -36,6 +37,8 @@ namespace HoSoMonitoring.Data.SeedWorks
         public ICaseAssignmentRepository CaseAssignments { get; private set; }
 
         public ICaseHistoryRepository CaseHistories { get; private set; }
+
+        public IUserProcedureFieldRepository UserProcedureFields { get; private set; }
 
         public async Task<int> CompleteAsync()
         {

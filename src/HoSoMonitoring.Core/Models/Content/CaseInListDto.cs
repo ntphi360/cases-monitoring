@@ -12,6 +12,16 @@ public class CaseInListDto
 
     public string ApplicantName { get; set; } = string.Empty;
 
+    public string? ProcedureName { get; set; }
+
+    public string? ProcedureFieldName { get; set; }
+
+    public string? DepartmentName { get; set; }
+
+    public string? OrganizationName { get; set; }
+
+    public string? AssigneeName { get; set; }
+
     public DateTime ReceivedAt { get; set; }
 
     public DateTime? AppointmentDate { get; set; }
@@ -32,7 +42,19 @@ public class CaseInListDto
     {
         public CaseInListMappingProfile()
         {
-            CreateMap<Case, CaseInListDto>();
+            CreateMap<Case, CaseInListDto>()
+                .ForMember(
+                    destination => destination.ProcedureName,
+                    options => options.MapFrom(source => source.Procedure!.Name))
+                .ForMember(
+                    destination => destination.ProcedureFieldName,
+                    options => options.MapFrom(source => source.Procedure!.ProcedureField!.Name))
+                .ForMember(
+                    destination => destination.DepartmentName,
+                    options => options.MapFrom(source => source.Procedure!.Department!.Name))
+                .ForMember(
+                    destination => destination.AssigneeName,
+                    options => options.MapFrom(source => source.CurrentAssignee!.FullName));
         }
     }
 }

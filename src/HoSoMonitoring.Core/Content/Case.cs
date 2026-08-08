@@ -21,6 +21,10 @@ public class Case
     [MaxLength(250)]
     public string ApplicantName { get; set; } = string.Empty;
 
+    // Tên cơ quan hoặc đơn vị của chủ hồ sơ, không phải phòng ban xử lý nội bộ.
+    [MaxLength(250)]
+    public string? OrganizationName { get; set; }
+
     [Required]
     public int ProcedureId { get; set; }
 

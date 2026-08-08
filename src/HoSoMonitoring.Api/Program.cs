@@ -6,6 +6,9 @@ using HoSoMonitoring.Data.SeedWorks;
 using HoSoMonitoring.Core.Repositories;
 using HoSoMonitoring.Data.Repositories;
 using HoSoMonitoring.Core.Models.Content;
+using HoSoMonitoring.Core.Services;
+using HoSoMonitoring.Data.Services;
+using HoSoMonitoring.Core.Configurations;
 
 
 
@@ -23,6 +26,14 @@ builder.Services.AddDbContext<HoSoMonitoringContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddScoped(typeof(IRepository<,>), typeof(RepositoryBase<,>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IImportService, ImportService>();
+var administrativeUnit = configuration
+    .GetSection(AdministrativeUnitOptions.SectionName)
+    .Get<AdministrativeUnitOptions>()
+    ?? new AdministrativeUnitOptions();
+builder.Services.AddSingleton(administrativeUnit);
+builder.Services.AddSingleton<ICaseCodeParser, CaseCodeParser>();
+builder.Services.AddScoped<ICaseCodeGenerator, CaseCodeGenerator>();
 
 builder.Services.AddAutoMapper(cfg => { }, typeof(CaseInListDto).Assembly);
 

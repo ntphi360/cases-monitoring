@@ -10,6 +10,9 @@ namespace HoSoMonitoring.Api.Controllers;
 [Route("api/[controller]")]
 public class CaseAssignmentsController : ControllerBase
 {
+    private const string AssigneeNotAuthorizedMessage =
+        "Cán bộ không được phân quyền xử lý lĩnh vực của thủ tục này";
+
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
 
@@ -40,6 +43,19 @@ public class CaseAssignmentsController : ControllerBase
     public async Task<ActionResult<CaseAssignmentDto>> CreateCaseAssignment(
         [FromBody] CreateCaseAssignmentRequest request)
     {
+        var caseEntity = await _unitOfWork.Cases.GetByIdAsync(request.CaseId);
+        if (caseEntity == null)
+        {
+            return BadRequest("Hồ sơ không tồn tại");
+        }
+
+        if (!await _unitOfWork.UserProcedureFields.CanUserHandleProcedureAsync(
+                request.AssignedToUserId,
+                caseEntity.ProcedureId))
+        {
+            return BadRequest(AssigneeNotAuthorizedMessage);
+        }
+
         var assignment = _mapper.Map<CaseAssignment>(request);
         assignment.AssignedAt = DateTime.Now;
         assignment.CreatedAt = DateTime.Now;

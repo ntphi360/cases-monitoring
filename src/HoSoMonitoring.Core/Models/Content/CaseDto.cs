@@ -20,11 +20,30 @@ public class CaseDto : CaseInListDto
 
     public DateTime? UpdatedAt { get; set; }
 
+    public string? CityCode { get; set; }
+
+    public string? CityName { get; set; }
+
+    public string? WardCode { get; set; }
+
+    public string? WardName { get; set; }
+
+    public DateTime? CaseCodeDate { get; set; }
+
+    public int? DailySequence { get; set; }
+
     public class CaseMappingProfile : Profile
     {
         public CaseMappingProfile()
         {
-            CreateMap<Case, CaseDto>();
+            CreateMap<Case, CaseDto>()
+                .IncludeBase<Case, CaseInListDto>()
+                .ForMember(destination => destination.CityCode, options => options.Ignore())
+                .ForMember(destination => destination.CityName, options => options.Ignore())
+                .ForMember(destination => destination.WardCode, options => options.Ignore())
+                .ForMember(destination => destination.WardName, options => options.Ignore())
+                .ForMember(destination => destination.CaseCodeDate, options => options.Ignore())
+                .ForMember(destination => destination.DailySequence, options => options.Ignore());
         }
     }
 }

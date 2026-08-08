@@ -33,6 +33,12 @@ namespace HoSoMonitoring.Data.Repositories
                 .Take(count)
                 .ToListAsync();
         }
+
+        public Task<bool> ExternalCaseCodeExistsAsync(string externalCaseCode)
+        {
+            return _context.Cases.AnyAsync(item =>
+                item.ExternalCaseCode == externalCaseCode);
+        }
         public async Task<PageResult<CaseInListDto>> GetAllPagingAsync(
     string? keyword,
     int? departmentId,

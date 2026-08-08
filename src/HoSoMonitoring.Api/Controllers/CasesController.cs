@@ -4,7 +4,9 @@ using HoSoMonitoring.Core.Enums;
 using HoSoMonitoring.Core.Models;
 using HoSoMonitoring.Core.Models.Content;
 using HoSoMonitoring.Core.SeedWorks;
+using HoSoMonitoring.Core.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace HoSoMonitoring.Api.Controllers
 {
@@ -12,15 +14,24 @@ namespace HoSoMonitoring.Api.Controllers
     [Route("api/[controller]")]
     public class CasesController : ControllerBase
     {
+        private const string AssigneeNotAuthorizedMessage =
+            "Cán bộ không được phân quyền xử lý lĩnh vực của thủ tục này";
+
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly ICaseCodeParser _caseCodeParser;
+        private readonly ICaseCodeGenerator _caseCodeGenerator;
 
         public CasesController(
             IUnitOfWork unitOfWork,
-            IMapper mapper)
+            IMapper mapper,
+            ICaseCodeParser caseCodeParser,
+            ICaseCodeGenerator caseCodeGenerator)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _caseCodeParser = caseCodeParser;
+            _caseCodeGenerator = caseCodeGenerator;
         }
 
         // GET /api/cases/paging?pageIndex=1&pageSize=10
@@ -59,6 +70,7 @@ namespace HoSoMonitoring.Api.Controllers
             }
 
             var result = _mapper.Map<CaseDto>(caseEntity);
+            ApplyCaseCodeInfo(result);
 
             return Ok(result);
         }
@@ -82,16 +94,54 @@ namespace HoSoMonitoring.Api.Controllers
         public async Task<ActionResult<CaseDto>> CreateCase(
             [FromBody] CreateUpdateCaseRequest request)
         {
+            if (request.CurrentAssigneeId.HasValue
+                && !await _unitOfWork.UserProcedureFields
+                    .CanUserHandleProcedureAsync(
+                        request.CurrentAssigneeId.Value,
+                        request.ProcedureId))
+            {
+                return BadRequest(AssigneeNotAuthorizedMessage);
+            }
+
             var caseEntity = _mapper
                 .Map<CreateUpdateCaseRequest, Case>(request);
+
+            var shouldGenerateCode = string.IsNullOrWhiteSpace(
+                request.ExternalCaseCode);
+            if (shouldGenerateCode)
+            {
+                caseEntity.ExternalCaseCode = await _caseCodeGenerator
+                    .GenerateAsync();
+            }
 
             caseEntity.CreatedAt = DateTime.Now;
 
             _unitOfWork.Cases.Add(caseEntity);
 
-            await _unitOfWork.CompleteAsync();
+            const int maxSaveAttempts = 3;
+            for (var attempt = 1; attempt <= maxSaveAttempts; attempt++)
+            {
+                try
+                {
+                    await _unitOfWork.CompleteAsync();
+                    break;
+                }
+                catch (DbUpdateException) when (
+                    shouldGenerateCode && attempt < maxSaveAttempts)
+                {
+                    if (!await _unitOfWork.Cases.ExternalCaseCodeExistsAsync(
+                            caseEntity.ExternalCaseCode))
+                    {
+                        throw;
+                    }
+
+                    caseEntity.ExternalCaseCode = await _caseCodeGenerator
+                        .GenerateAsync();
+                }
+            }
 
             var result = _mapper.Map<CaseDto>(caseEntity);
+            ApplyCaseCodeInfo(result);
 
             return CreatedAtAction(
                 nameof(GetCaseById),
@@ -113,13 +163,28 @@ namespace HoSoMonitoring.Api.Controllers
                 return NotFound();
             }
 
+            if (request.CurrentAssigneeId.HasValue
+                && !await _unitOfWork.UserProcedureFields
+                    .CanUserHandleProcedureAsync(
+                        request.CurrentAssigneeId.Value,
+                        request.ProcedureId))
+            {
+                return BadRequest(AssigneeNotAuthorizedMessage);
+            }
+
+            var currentExternalCaseCode = caseEntity.ExternalCaseCode;
             _mapper.Map(request, caseEntity);
+            if (string.IsNullOrWhiteSpace(caseEntity.ExternalCaseCode))
+            {
+                caseEntity.ExternalCaseCode = currentExternalCaseCode;
+            }
 
             caseEntity.UpdatedAt = DateTime.Now;
 
             await _unitOfWork.CompleteAsync();
 
             var result = _mapper.Map<CaseDto>(caseEntity);
+            ApplyCaseCodeInfo(result);
 
             return Ok(result);
         }
@@ -141,6 +206,22 @@ namespace HoSoMonitoring.Api.Controllers
             await _unitOfWork.CompleteAsync();
 
             return NoContent();
+        }
+
+        private void ApplyCaseCodeInfo(CaseDto caseDto)
+        {
+            var caseCodeInfo = _caseCodeParser.Parse(caseDto.ExternalCaseCode);
+            if (!caseCodeInfo.IsValid)
+            {
+                return;
+            }
+
+            caseDto.CityCode = caseCodeInfo.CityCode;
+            caseDto.CityName = caseCodeInfo.CityName;
+            caseDto.WardCode = caseCodeInfo.WardCode;
+            caseDto.WardName = caseCodeInfo.WardName;
+            caseDto.CaseCodeDate = caseCodeInfo.ReceivedDate;
+            caseDto.DailySequence = caseCodeInfo.DailySequence;
         }
     }
 }

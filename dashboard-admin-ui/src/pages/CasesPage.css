@@ -101,7 +101,7 @@
 .cases-table-card__header span { color: #8a97aa; font-size: 10px; }
 .cases-table-wrap { width: 100%; max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
 
-.cases-table { width: 100%; min-width: 1510px; border-collapse: collapse; color: #52627a; font-size: 10.5px; text-align: left; }
+.cases-table { width: 100%; min-width: 1660px; border-collapse: collapse; color: #52627a; font-size: 10.5px; text-align: left; }
 .cases-table th { padding: 8px 12px; color: #7a889c; background: #fafbfd; border-bottom: 1px solid #e9eef5; font-size: 9px; font-weight: 700; letter-spacing: .025em; text-transform: uppercase; white-space: nowrap; }
 .cases-table td { max-width: 210px; padding: 9px 12px; border-bottom: 1px solid #edf1f6; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cases-table tbody tr:hover { background: #f8fbff; }

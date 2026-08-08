@@ -39,6 +39,11 @@ function mapApiCase(item) {
     processingDays: item.processingDays,
     priority: item.priority,
     currentStepName: item.currentStepName,
+    procedureName: item.procedureName,
+    procedureFieldName: item.procedureFieldName,
+    departmentName: item.departmentName,
+    organizationName: item.organizationName,
+    assigneeName: item.assigneeName,
     fieldId: "",
     procedureId: "",
     departmentId: "",
@@ -121,10 +126,11 @@ function CaseDetails({ caseItem, histories, onClose }) {
   const details = [
     ["Mã hồ sơ", caseItem.caseCode],
     ["Tên hồ sơ", caseItem.caseName],
-    ["Lĩnh vực", field?.name],
-    ["Thủ tục hành chính", procedure?.name],
-    ["Phòng ban xử lý", department?.name],
-    ["Người xử lý", user?.fullName],
+    ["Cơ quan/đơn vị", caseItem.organizationName],
+    ["Lĩnh vực", caseItem.procedureFieldName ?? field?.name],
+    ["Thủ tục hành chính", caseItem.procedureName ?? procedure?.name],
+    ["Phòng ban xử lý", caseItem.departmentName ?? department?.name],
+    ["Người xử lý", caseItem.assigneeName ?? user?.fullName],
     ["Ngày tiếp nhận", formatDate(caseItem.receivedDate)],
     ["Ngày hẹn trả", formatDateTime(caseItem.appointmentReturnDate)],
     ["Ngày hoàn tất", formatDate(caseItem.completedDate)],
@@ -541,18 +547,18 @@ function CasesPage() {
           <table className="cases-table">
             <thead>
               <tr>
-                <th>Mã hồ sơ</th><th>Tên hồ sơ</th><th>Lĩnh vực</th><th>Thủ tục hành chính</th><th>Phòng ban</th><th>Người xử lý</th><th>Ngày tiếp nhận</th><th>Ngày hẹn trả</th><th>Trạng thái</th><th>Thao tác</th>
+                <th>Mã hồ sơ</th><th>Tên hồ sơ</th><th>Lĩnh vực</th><th>Thủ tục hành chính</th><th>Phòng ban</th><th>Cơ quan/đơn vị</th><th>Người xử lý</th><th>Ngày tiếp nhận</th><th>Ngày hẹn trả</th><th>Trạng thái</th><th>Thao tác</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
                 <tr>
-                  <td className="cases-table__empty" colSpan="10">Đang tải dữ liệu hồ sơ...</td>
+                  <td className="cases-table__empty" colSpan="11">Đang tải dữ liệu hồ sơ...</td>
                 </tr>
               )}
               {!loading && loadError && (
                 <tr>
-                  <td className="cases-table__empty" colSpan="10" role="alert">Lỗi: {loadError}</td>
+                  <td className="cases-table__empty" colSpan="11" role="alert">Lỗi: {loadError}</td>
                 </tr>
               )}
               {pageCases.map((caseItem) => {
@@ -561,10 +567,11 @@ function CasesPage() {
                   <tr key={caseItem.id}>
                     <td className="cases-table__code">{caseItem.caseCode}</td>
                     <td className="cases-table__name">{caseItem.caseName}</td>
-                    <td>{field?.name ?? "—"}</td>
-                    <td>{procedure?.name ?? "—"}</td>
-                    <td>{department?.name ?? "—"}</td>
-                    <td>{user?.fullName ?? "—"}</td>
+                    <td>{caseItem.procedureFieldName ?? field?.name ?? "—"}</td>
+                    <td>{caseItem.procedureName ?? procedure?.name ?? "—"}</td>
+                    <td>{caseItem.departmentName ?? department?.name ?? "—"}</td>
+                    <td>{caseItem.organizationName ?? "—"}</td>
+                    <td>{caseItem.assigneeName ?? user?.fullName ?? "—"}</td>
                     <td>{formatDate(caseItem.receivedDate)}</td>
                     <td>{formatDateTime(caseItem.appointmentReturnDate)}</td>
                     <td><StatusBadge status={caseItem.status} /></td>
@@ -578,7 +585,7 @@ function CasesPage() {
                   </tr>
                 );
               })}
-              {!loading && !loadError && !pageCases.length && <tr><td className="cases-table__empty" colSpan="10">Không tìm thấy hồ sơ phù hợp.</td></tr>}
+              {!loading && !loadError && !pageCases.length && <tr><td className="cases-table__empty" colSpan="11">Không tìm thấy hồ sơ phù hợp.</td></tr>}
             </tbody>
           </table>
         </div>

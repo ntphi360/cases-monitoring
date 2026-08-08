@@ -10,6 +10,8 @@ namespace HoSoMonitoring.Core.Repositories
     {
         Task<List<Case>> GetOverdueCasesAsync(int count);
 
+        Task<bool> ExternalCaseCodeExistsAsync(string externalCaseCode);
+
         Task<PageResult<CaseInListDto>> GetAllPagingAsync(
             string? keyword,
             int? departmentId,
