@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Eye, Filter, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 
 import {
-  caseHistories as initialCaseHistories,
   caseStatuses,
   departments as mockDepartments,
   fields as mockFields,
@@ -132,64 +132,6 @@ function CaseModal({ children, onClose, title }) {
         {children}
       </section>
     </div>
-  );
-}
-
-function CaseDetails({ caseItem, histories, onClose }) {
-  const { department, field, procedure, user } = getCaseRelations(caseItem);
-  const details = [
-    ["Mã hồ sơ", caseItem.caseCode],
-    ["Tên hồ sơ", caseItem.caseName],
-    ["Cơ quan/đơn vị", caseItem.organizationName],
-    ["Lĩnh vực", caseItem.procedureFieldName ?? field?.name],
-    ["Thủ tục hành chính", caseItem.procedureName ?? procedure?.name],
-    ["Phòng ban xử lý", caseItem.departmentName ?? department?.name],
-    ["Người xử lý", caseItem.assigneeName ?? user?.fullName],
-    ["Ngày tiếp nhận", formatDate(caseItem.receivedDate)],
-    ["Ngày hẹn trả", formatDateTime(caseItem.appointmentReturnDate)],
-    ["Ngày hoàn tất", formatDate(caseItem.completedDate)],
-  ];
-
-  return (
-    <CaseModal onClose={onClose} title="Chi tiết hồ sơ">
-      <div className="case-modal__body">
-        <dl className="case-details">
-          {details.map(([label, value]) => (
-            <div className={`case-details__item${label === "Ngày hẹn trả" ? " case-details__item--appointment" : ""}`} key={label}>
-              <dt>{label}</dt>
-              <dd>{value || "—"}</dd>
-            </div>
-          ))}
-          <div className="case-details__item">
-            <dt>Trạng thái</dt>
-            <dd><StatusBadge status={caseItem.status} /></dd>
-          </div>
-          <div className="case-details__item case-details__item--wide">
-            <dt>Ghi chú</dt>
-            <dd>{caseItem.note || "Không có ghi chú."}</dd>
-          </div>
-        </dl>
-
-        <section className="case-history">
-          <h3>Lịch sử xử lý</h3>
-          <ol>
-            {histories.map((item) => (
-              <li key={item.id}>
-                <span className="case-history__dot" aria-hidden="true" />
-                <div>
-                  <strong>{item.status}</strong>
-                  <time>{formatDateTime(item.createdAt)}</time>
-                  <small>{item.note}</small>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </section>
-      </div>
-      <footer className="case-modal__footer">
-        <button className="cases-button cases-button--secondary" type="button" onClick={onClose}>Đóng</button>
-      </footer>
-    </CaseModal>
   );
 }
 
@@ -368,6 +310,7 @@ function DeleteCaseConfirm({ caseItem, onClose, onConfirm }) {
 }
 
 function CasesPage() {
+  const navigate = useNavigate();
   const currentRole = useSelector((state) => state.auth.user?.role ?? "ADMIN");
   const isAdmin = String(currentRole).toUpperCase() === "ADMIN";
   const [caseList, setCaseList] = useState([]);
@@ -382,11 +325,9 @@ function CasesPage() {
   });
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [historyList, setHistoryList] = useState(initialCaseHistories);
   const [draftFilters, setDraftFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedCase, setSelectedCase] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
   const [editingCase, setEditingCase] = useState(null);
   const [deletingCase, setDeletingCase] = useState(null);
@@ -493,16 +434,6 @@ function CasesPage() {
 
   function addCase(caseItem) {
     setCaseList((current) => [caseItem, ...current]);
-    setHistoryList((current) => [
-      ...current,
-      {
-        id: `history-${Date.now()}`,
-        caseId: caseItem.id,
-        status: "Tiếp nhận hồ sơ",
-        createdAt: new Date().toISOString().slice(0, 19),
-        note: "Hồ sơ mới được tạo trên hệ thống.",
-      },
-    ]);
     setAppliedFilters(emptyFilters);
     setDraftFilters(emptyFilters);
     setCurrentPage(1);
@@ -510,22 +441,7 @@ function CasesPage() {
   }
 
   function updateCase(updatedCase) {
-    const previousCase = caseList.find((item) => item.id === updatedCase.id);
     setCaseList((current) => current.map((item) => item.id === updatedCase.id ? updatedCase : item));
-
-    if (previousCase?.status !== updatedCase.status) {
-      setHistoryList((current) => [
-        ...current,
-        {
-          id: `history-${Date.now()}`,
-          caseId: updatedCase.id,
-          status: updatedCase.status,
-          createdAt: new Date().toISOString().slice(0, 19),
-          note: `Cập nhật trạng thái từ ${previousCase.status} thành ${updatedCase.status}.`,
-        },
-      ]);
-    }
-
     setEditingCase(null);
   }
 
@@ -533,7 +449,6 @@ function CasesPage() {
     const nextTotalCount = Math.max(0, totalCount - 1);
     const nextTotalPages = Math.max(1, Math.ceil(nextTotalCount / PAGE_SIZE));
     setCaseList((current) => current.filter((item) => item.id !== deletingCase.id));
-    setHistoryList((current) => current.filter((item) => item.caseId !== deletingCase.id));
     setTotalCount(nextTotalCount);
     setTotalPages(nextTotalPages);
     setCurrentPage((page) => Math.min(page, nextTotalPages));
@@ -651,7 +566,7 @@ function CasesPage() {
                     <td><StatusBadge status={caseItem.status} /></td>
                     <td>
                       <div className="cases-row-actions">
-                        <button aria-label={`Xem chi tiết ${caseItem.caseCode}`} className="cases-action-button" title="Xem chi tiết" type="button" onClick={() => setSelectedCase(caseItem)}><Eye size={14} /></button>
+                        <button aria-label={`Xem chi tiết ${caseItem.caseCode}`} className="cases-action-button" title="Xem chi tiết" type="button" onClick={() => navigate(`/cases/${caseItem.id}`)}><Eye size={14} /></button>
                         <button aria-label={`Chỉnh sửa ${caseItem.caseCode}`} className="cases-action-button" title="Chỉnh sửa" type="button" onClick={() => setEditingCase(caseItem)}><Pencil size={14} /></button>
                         {isAdmin && <button aria-label={`Xóa ${caseItem.caseCode}`} className="cases-action-button cases-action-button--danger" title="Xóa" type="button" onClick={() => setDeletingCase(caseItem)}><Trash2 size={14} /></button>}
                       </div>
@@ -671,13 +586,6 @@ function CasesPage() {
         </div>
       </article>
 
-      {selectedCase && (
-        <CaseDetails
-          caseItem={selectedCase}
-          histories={historyList.filter((item) => item.caseId === selectedCase.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt))}
-          onClose={() => setSelectedCase(null)}
-        />
-      )}
       {isAdding && <CaseForm existingCases={caseList} onClose={() => setIsAdding(false)} onSave={addCase} />}
       {editingCase && <CaseForm existingCases={caseList} initialCase={editingCase} onClose={() => setEditingCase(null)} onSave={updateCase} />}
       {deletingCase && <DeleteCaseConfirm caseItem={deletingCase} onClose={() => setDeletingCase(null)} onConfirm={deleteCase} />}

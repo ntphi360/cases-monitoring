@@ -16,6 +16,9 @@ public class CaseAssignmentRepository
     public Task<List<CaseAssignment>> GetByCaseIdAsync(int caseId)
     {
         return _context.CaseAssignments
+            .AsNoTracking()
+            .Include(x => x.AssignedToUser)
+            .Include(x => x.AssignedByUser)
             .Where(x => x.CaseId == caseId)
             .OrderBy(x => x.AssignedAt)
             .ToListAsync();

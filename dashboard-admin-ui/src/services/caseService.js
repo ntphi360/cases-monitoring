@@ -26,6 +26,18 @@ export async function getCases(params = {}) {
   return apiFetch(`/Cases/paging${queryString ? `?${queryString}` : ""}`);
 }
 
+export function getCaseById(id) {
+  return apiFetch(`/Cases/${id}`);
+}
+
+export function getCaseAssignments(id) {
+  return apiFetch(`/CaseAssignments/by-case/${id}`);
+}
+
+export function getCaseHistories(id) {
+  return apiFetch(`/CaseHistories/by-case/${id}`);
+}
+
 export function getProcedureFields() {
   return apiFetch("/ProcedureFields");
 }

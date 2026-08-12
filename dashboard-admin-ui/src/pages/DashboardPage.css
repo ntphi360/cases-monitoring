@@ -29,6 +29,16 @@
   line-height: 1.5;
 }
 
+.dashboard-feedback {
+  margin-bottom: 12px;
+  padding: 9px 12px;
+  color: #c42f39;
+  background: #fff1f2;
+  border: 1px solid #ffd6d9;
+  border-radius: 8px;
+  font-size: 11px;
+}
+
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -190,6 +200,15 @@
   height: 100%;
 }
 
+.dashboard-empty-chart {
+  display: grid;
+  height: 100%;
+  margin: 0;
+  place-items: center;
+  color: #94a0b1;
+  font-size: 11px;
+}
+
 .status-chart__legend {
   display: grid;
   min-width: 0;
@@ -316,6 +335,12 @@
   font-weight: 650;
 }
 
+.records-table__empty {
+  height: 72px;
+  color: #8a97aa;
+  text-align: center;
+}
+
 .status-badge {
   display: inline-flex;
   min-height: 22px;
@@ -330,6 +355,11 @@
 .status-badge--processing {
   color: #1768dc;
   background: #eaf3ff;
+}
+
+.status-badge--new {
+  color: #6452b7;
+  background: #f0edff;
 }
 
 .status-badge--upcoming {
@@ -350,6 +380,11 @@
 .status-badge--completed {
   color: #178b54;
   background: #e8f7ef;
+}
+
+.status-badge--cancelled {
+  color: #64748b;
+  background: #f1f5f9;
 }
 
 @media (max-width: 1080px) {

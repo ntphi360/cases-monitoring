@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import DashboardPage from "../pages/DashboardPage";
 import CasesPage from "../pages/CasesPage";
+import CaseDetailPage from "../pages/CaseDetailPage";
 import AlertsPage from "../pages/AlertsPage";
 import NotificationsPage from "../pages/NotificationsPage";
 import ReportsPage from "../pages/ReportsPage";
@@ -15,6 +16,7 @@ function AppRoutes() {
         <Route index element={<DashboardPage />} />
 
         <Route path="cases" element={<CasesPage />} />
+        <Route path="cases/:id" element={<CaseDetailPage />} />
 
         <Route path="alerts" element={<AlertsPage />} />
 

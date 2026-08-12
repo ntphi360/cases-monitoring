@@ -21,7 +21,9 @@ export async function apiFetch(path, options = {}) {
       data && typeof data === 'object' && data.message
         ? data.message
         : `Yêu cầu thất bại (${response.status} ${response.statusText})`
-    throw new Error(message)
+    const error = new Error(message)
+    error.status = response.status
+    throw error
   }
 
   return data

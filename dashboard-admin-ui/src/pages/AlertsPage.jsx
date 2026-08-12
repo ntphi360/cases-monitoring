@@ -1,20 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
-import { BellRing, CalendarClock, Clock3, Eye, Filter, RotateCcw, Search, Send, TriangleAlert, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BellRing, CalendarClock, ChevronLeft, ChevronRight, Clock3, Eye, Filter, RotateCcw, Search, Send, TriangleAlert, X } from "lucide-react";
 import { useSelector } from "react-redux";
 
+import { getCaseAlerts } from "../services/alertService";
 import {
-  cases,
-  departments,
-  fields,
-  getCaseRelations,
-  procedures,
-  users,
-} from "../data/caseData";
+  getDepartments,
+  getProcedureFields,
+  getProcedures,
+  getUsers,
+} from "../services/caseService";
 import "./CasesPage.css";
 import "./AlertsPage.css";
 
-const alertLevels = ["Sắp hạn", "Đến hạn hôm nay", "Quá hạn"];
-const initialNow = Date.now();
+const PAGE_SIZE = 10;
+const alertLevels = [
+  { label: "Sắp hạn", value: "Upcoming" },
+  { label: "Đến hạn hôm nay", value: "DueToday" },
+  { label: "Quá hạn", value: "Overdue" },
+];
 const channels = [
   { id: "IN_APP", label: "Thông báo trong hệ thống" },
   { id: "EMAIL", label: "Email" },
@@ -30,15 +33,30 @@ const emptyFilters = {
   alertLevel: "",
 };
 
-function formatDateTime(value) {
-  if (!value) return "—";
-  const [date, time = "00:00:00"] = value.split("T");
-  const [year, month, day] = date.split("-");
-  return `${day}/${month}/${year} ${time}`;
+function mapApiAlert(item) {
+  return {
+    id: item.id,
+    caseCode: item.externalCaseCode,
+    caseName: item.applicantName,
+    procedureFieldName: item.procedureFieldName,
+    procedureName: item.procedureName,
+    departmentName: item.departmentName,
+    assigneeName: item.assigneeName,
+    dueDate: item.deadline,
+    appointmentReturnDate: item.appointmentDate,
+  };
 }
 
-function getAlertLevel(appointmentReturnDate, now) {
-  const due = new Date(appointmentReturnDate);
+function formatDateTime(value) {
+  if (!value) return "—";
+  const [date, time = "00:00"] = value.replace(" ", "T").split("T");
+  const [year, month, day] = date.split("-");
+  return `${day}/${month}/${year} ${time.slice(0, 5)}`;
+}
+
+function getAlertLevel(deadline, now) {
+  if (!deadline) return "Không xác định";
+  const due = new Date(deadline);
   const current = new Date(now);
 
   if (due.getTime() < now) return "Quá hạn";
@@ -55,18 +73,23 @@ function getAlertKey(level) {
     "Sắp hạn": "upcoming",
     "Đến hạn hôm nay": "today",
     "Quá hạn": "overdue",
-  }[level];
+  }[level] ?? "upcoming";
 }
 
-function formatCountdown(appointmentReturnDate, now) {
-  const difference = new Date(appointmentReturnDate).getTime() - now;
-  const totalSeconds = Math.floor(Math.abs(difference) / 1000);
-  const days = Math.floor(totalSeconds / 86400);
-  const hours = Math.floor((totalSeconds % 86400) / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  const clock = [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
-  const duration = days > 0 ? `${days} ngày ${clock}` : clock;
+function formatCountdown(deadline, now) {
+  if (!deadline) return "—";
+  const difference = new Date(deadline).getTime() - now;
+  if (Number.isNaN(difference)) return "—";
+
+  const totalMinutes = Math.floor(Math.abs(difference) / 60000);
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = totalMinutes % 60;
+  const duration = days > 0
+    ? `${days} ngày ${hours} giờ`
+    : hours > 0
+      ? `${hours} giờ ${minutes} phút`
+      : `${minutes} phút`;
 
   return difference < 0 ? `Quá hạn ${duration}` : `Còn ${duration}`;
 }
@@ -90,27 +113,25 @@ function AlertModal({ children, onClose, title }) {
 }
 
 function CaseAlertDetails({ caseItem, now, onClose }) {
-  const { department, field, procedure, user } = getCaseRelations(caseItem);
-  const alertLevel = getAlertLevel(caseItem.appointmentReturnDate, now);
+  const alertLevel = getAlertLevel(caseItem.dueDate, now);
   const details = [
     ["Mã hồ sơ", caseItem.caseCode],
     ["Tên hồ sơ", caseItem.caseName],
-    ["Lĩnh vực", field?.name],
-    ["Thủ tục hành chính", procedure?.name],
-    ["Phòng ban", department?.name],
-    ["Người xử lý", user?.fullName],
+    ["Lĩnh vực", caseItem.procedureFieldName],
+    ["Thủ tục hành chính", caseItem.procedureName],
+    ["Phòng ban", caseItem.departmentName],
+    ["Người xử lý", caseItem.assigneeName],
     ["Hạn xử lý", formatDateTime(caseItem.dueDate)],
     ["Ngày hẹn trả", formatDateTime(caseItem.appointmentReturnDate)],
-    ["Thời hạn", formatCountdown(caseItem.appointmentReturnDate, now)],
+    ["Thời hạn", formatCountdown(caseItem.dueDate, now)],
   ];
 
   return (
     <AlertModal onClose={onClose} title="Thông tin hồ sơ cảnh báo">
       <div className="case-modal__body">
         <dl className="case-details">
-          {details.map(([label, value]) => <div className="case-details__item" key={label}><dt>{label}</dt><dd>{value ?? "—"}</dd></div>)}
+          {details.map(([label, value]) => <div className="case-details__item" key={label}><dt>{label}</dt><dd>{value || "—"}</dd></div>)}
           <div className="case-details__item"><dt>Mức cảnh báo</dt><dd><AlertBadge level={alertLevel} /></dd></div>
-          <div className="case-details__item case-details__item--wide"><dt>Ghi chú</dt><dd>{caseItem.note || "Không có ghi chú."}</dd></div>
         </dl>
       </div>
       <footer className="case-modal__footer"><button className="cases-button cases-button--secondary" type="button" onClick={onClose}>Đóng</button></footer>
@@ -119,33 +140,30 @@ function CaseAlertDetails({ caseItem, now, onClose }) {
 }
 
 function createDefaultMessage(caseItem, now) {
-  const countdown = formatCountdown(caseItem.appointmentReturnDate, now);
-  const appointmentReturnDate = formatDateTime(caseItem.appointmentReturnDate);
+  const countdown = formatCountdown(caseItem.dueDate, now);
+  const deadline = formatDateTime(caseItem.dueDate);
   const overdue = countdown.startsWith("Quá hạn");
   return overdue
-    ? `Hồ sơ ${caseItem.caseCode} - ${caseItem.caseName} có ngày hẹn trả ${appointmentReturnDate} và hiện đã ${countdown.toLocaleLowerCase("vi")}. Vui lòng kiểm tra và xử lý hồ sơ.`
-    : `Hồ sơ ${caseItem.caseCode} - ${caseItem.caseName} có ngày hẹn trả ${appointmentReturnDate}. Hiện ${countdown.toLocaleLowerCase("vi")} trước ngày hẹn trả. Vui lòng kiểm tra và xử lý hồ sơ đúng tiến độ.`;
+    ? `Hồ sơ ${caseItem.caseCode} - ${caseItem.caseName} có hạn xử lý ${deadline} và hiện đã ${countdown.toLocaleLowerCase("vi")}. Vui lòng kiểm tra và xử lý hồ sơ.`
+    : `Hồ sơ ${caseItem.caseCode} - ${caseItem.caseName} có hạn xử lý ${deadline}. Hiện ${countdown.toLocaleLowerCase("vi")} trước hạn xử lý. Vui lòng kiểm tra và xử lý hồ sơ đúng tiến độ.`;
 }
 
 function ReminderModal({ caseItem, now, onClose, onSend }) {
-  const { department, field, procedure, user } = getCaseRelations(caseItem);
   const [selectedChannels, setSelectedChannels] = useState([]);
   const [message, setMessage] = useState(() => createDefaultMessage(caseItem, now));
   const [error, setError] = useState("");
-  const alertLevel = getAlertLevel(caseItem.appointmentReturnDate, now);
+  const alertLevel = getAlertLevel(caseItem.dueDate, now);
   const allSelected = selectedChannels.length === channels.length;
   const details = [
     ["Mã hồ sơ", caseItem.caseCode],
     ["Tên hồ sơ", caseItem.caseName],
-    ["Lĩnh vực", field?.name],
-    ["Thủ tục hành chính", procedure?.name],
-    ["Người xử lý", user?.fullName],
-    ["Phòng ban", department?.name],
-    ["Email", user?.email],
-    ["Số điện thoại", user?.phone],
+    ["Lĩnh vực", caseItem.procedureFieldName],
+    ["Thủ tục hành chính", caseItem.procedureName],
+    ["Người xử lý", caseItem.assigneeName],
+    ["Phòng ban", caseItem.departmentName],
     ["Hạn xử lý", formatDateTime(caseItem.dueDate)],
     ["Ngày hẹn trả", formatDateTime(caseItem.appointmentReturnDate)],
-    ["Thời hạn", formatCountdown(caseItem.appointmentReturnDate, now)],
+    ["Thời hạn", formatCountdown(caseItem.dueDate, now)],
   ];
 
   function toggleChannel(channelId) {
@@ -167,14 +185,7 @@ function ReminderModal({ caseItem, now, onClose, onSend }) {
       return;
     }
 
-    onSend({
-      id: `reminder-${Date.now()}`,
-      caseId: caseItem.id,
-      userId: caseItem.assignedUserId,
-      channels: selectedChannels,
-      message: message.trim(),
-      createdAt: new Date().toISOString(),
-    });
+    onSend({ channels: selectedChannels });
   }
 
   return (
@@ -182,7 +193,7 @@ function ReminderModal({ caseItem, now, onClose, onSend }) {
       <form onSubmit={handleSubmit}>
         <div className="case-modal__body reminder-form">
           <dl className="reminder-details">
-            {details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value ?? "—"}</dd></div>)}
+            {details.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || "—"}</dd></div>)}
             <div><dt>Mức cảnh báo</dt><dd><AlertBadge level={alertLevel} /></dd></div>
           </dl>
 
@@ -214,71 +225,125 @@ function ReminderModal({ caseItem, now, onClose, onSend }) {
 function AlertsPage() {
   const currentRole = useSelector((state) => state.auth.user?.role ?? "ADMIN");
   const isAdmin = String(currentRole).toUpperCase() === "ADMIN";
-  const [now, setNow] = useState(initialNow);
+  const [now, setNow] = useState(() => Date.now());
+  const [caseList, setCaseList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [catalogError, setCatalogError] = useState("");
+  const [catalogs, setCatalogs] = useState({ fields: [], procedures: [], departments: [], users: [] });
+  const [counts, setCounts] = useState({ upcoming: 0, today: 0, overdue: 0 });
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
   const [draftFilters, setDraftFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
   const [selectedCase, setSelectedCase] = useState(null);
   const [reminderCase, setReminderCase] = useState(null);
-  const [, setReminders] = useState([]);
   const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
-    const intervalId = window.setInterval(() => setNow(Date.now()), 1000);
+    const intervalId = window.setInterval(() => setNow(Date.now()), 60000);
     return () => window.clearInterval(intervalId);
   }, []);
 
-  const alertCases = useMemo(() => cases
-    .filter((caseItem) => caseItem.status !== "Hoàn thành")
-    .map((caseItem) => ({ ...caseItem, alertLevel: getAlertLevel(caseItem.appointmentReturnDate, now) })), [now]);
+  useEffect(() => {
+    let isCurrent = true;
+    Promise.all([getProcedureFields(), getProcedures(), getDepartments(), getUsers()])
+      .then(([fields, procedures, departments, users]) => {
+        if (!isCurrent) return;
+        setCatalogs({
+          fields: (fields ?? []).filter((item) => item.isActive !== false),
+          procedures: (procedures ?? []).filter((item) => item.isActive !== false),
+          departments: (departments ?? []).filter((item) => item.isActive !== false),
+          users: (users ?? []).filter((item) => item.isActive !== false),
+        });
+      })
+      .catch((error) => {
+        if (isCurrent) setCatalogError(error.message || "Không thể tải dữ liệu bộ lọc.");
+      });
+    return () => { isCurrent = false; };
+  }, []);
 
-  const filteredProcedures = procedures.filter((item) => !draftFilters.fieldId || item.fieldId === draftFilters.fieldId);
-  const filteredUsers = users.filter((item) => !draftFilters.departmentId || item.departmentId === draftFilters.departmentId);
-  const filteredCases = alertCases.filter((caseItem) => {
-    const { department, field, procedure, user } = getCaseRelations(caseItem);
-    const search = appliedFilters.search.trim().toLocaleLowerCase("vi");
-    const matchesSearch = !search || caseItem.caseCode.toLocaleLowerCase("vi").includes(search) || caseItem.caseName.toLocaleLowerCase("vi").includes(search);
+  useEffect(() => {
+    let isCurrent = true;
+    getCaseAlerts({
+      type: appliedFilters.alertLevel,
+      keyword: appliedFilters.search.trim(),
+      procedureFieldId: appliedFilters.fieldId,
+      procedureId: appliedFilters.procedureId,
+      departmentId: appliedFilters.departmentId,
+      assignedUserId: appliedFilters.assignedUserId,
+      pageIndex: currentPage,
+      pageSize: PAGE_SIZE,
+    })
+      .then((response) => {
+        if (!isCurrent) return;
+        setCaseList((response.results ?? []).map(mapApiAlert));
+        setTotalCount(response.totalCount ?? 0);
+        setTotalPages(Math.max(response.totalPages ?? 0, 1));
+        setCounts({
+          upcoming: response.upcomingCount ?? 0,
+          today: response.dueTodayCount ?? 0,
+          overdue: response.overdueCount ?? 0,
+        });
+      })
+      .catch((error) => {
+        if (isCurrent) setLoadError(error.message || "Không thể tải dữ liệu cảnh báo.");
+      })
+      .finally(() => {
+        if (isCurrent) setLoading(false);
+      });
+    return () => { isCurrent = false; };
+  }, [appliedFilters, currentPage]);
 
-    return matchesSearch
-      && (!appliedFilters.fieldId || field?.id === appliedFilters.fieldId)
-      && (!appliedFilters.procedureId || procedure?.id === appliedFilters.procedureId)
-      && (!appliedFilters.departmentId || department?.id === appliedFilters.departmentId)
-      && (!appliedFilters.assignedUserId || user?.id === appliedFilters.assignedUserId)
-      && (!appliedFilters.alertLevel || caseItem.alertLevel === appliedFilters.alertLevel);
-  });
-
-  const alertCounts = alertLevels.reduce((counts, level) => ({
-    ...counts,
-    [level]: alertCases.filter((caseItem) => caseItem.alertLevel === level).length,
-  }), {});
-
+  const filteredProcedures = catalogs.procedures.filter((item) =>
+    !draftFilters.fieldId || String(item.procedureFieldId) === String(draftFilters.fieldId));
+  const filteredUsers = catalogs.users.filter((item) =>
+    !draftFilters.departmentId || String(item.departmentId) === String(draftFilters.departmentId));
+  const totalAlerts = counts.upcoming + counts.today + counts.overdue;
   const kpiCards = [
-    { label: "Tổng cảnh báo", value: alertCases.length, icon: BellRing, tone: "blue" },
-    { label: "Sắp hạn", value: alertCounts["Sắp hạn"], icon: Clock3, tone: "orange" },
-    { label: "Đến hạn hôm nay", value: alertCounts["Đến hạn hôm nay"], icon: CalendarClock, tone: "purple" },
-    { label: "Quá hạn", value: alertCounts["Quá hạn"], icon: TriangleAlert, tone: "red" },
+    { label: "Tổng cảnh báo", value: totalAlerts, icon: BellRing, tone: "blue" },
+    { label: "Sắp hạn", value: counts.upcoming, icon: Clock3, tone: "orange" },
+    { label: "Đến hạn hôm nay", value: counts.today, icon: CalendarClock, tone: "purple" },
+    { label: "Quá hạn", value: counts.overdue, icon: TriangleAlert, tone: "red" },
   ];
 
   function changeDraftFilter(name, value) {
     setDraftFilters((current) => {
       const next = { ...current, [name]: value };
-      if (name === "fieldId" && !procedures.some((item) => item.id === current.procedureId && item.fieldId === value)) next.procedureId = "";
-      if (name === "departmentId" && !users.some((item) => item.id === current.assignedUserId && item.departmentId === value)) next.assignedUserId = "";
+      if (name === "fieldId" && !catalogs.procedures.some((item) =>
+        String(item.id) === String(current.procedureId)
+        && String(item.procedureFieldId) === String(value))) next.procedureId = "";
+      if (name === "departmentId" && !catalogs.users.some((item) =>
+        String(item.id) === String(current.assignedUserId)
+        && String(item.departmentId) === String(value))) next.assignedUserId = "";
       return next;
     });
   }
 
   function applyFilters(event) {
     event.preventDefault();
-    setAppliedFilters(draftFilters);
+    setLoading(true);
+    setLoadError("");
+    setAppliedFilters({ ...draftFilters });
+    setCurrentPage(1);
   }
 
   function resetFilters() {
-    setDraftFilters(emptyFilters);
-    setAppliedFilters(emptyFilters);
+    setLoading(true);
+    setLoadError("");
+    setDraftFilters({ ...emptyFilters });
+    setAppliedFilters({ ...emptyFilters });
+    setCurrentPage(1);
+  }
+
+  function changePage(page) {
+    setLoading(true);
+    setLoadError("");
+    setCurrentPage(page);
   }
 
   function sendReminder(reminder) {
-    setReminders((current) => [...current, reminder]);
     const channelNames = channels.filter((item) => reminder.channels.includes(item.id)).map((item) => item.label).join(", ");
     setSuccessMessage(`Đã gửi nhắc nhở hồ sơ ${reminderCase.caseCode} qua ${channelNames}.`);
     setReminderCase(null);
@@ -298,33 +363,43 @@ function AlertsPage() {
 
       <form className="cases-filter-card alerts-filter-card" onSubmit={applyFilters}>
         <label><span>Tìm kiếm</span><div className="cases-search-input"><Search size={15} /><input placeholder="Mã hoặc tên hồ sơ" value={draftFilters.search} onChange={(event) => changeDraftFilter("search", event.target.value)} /></div></label>
-        <label><span>Lĩnh vực</span><select value={draftFilters.fieldId} onChange={(event) => changeDraftFilter("fieldId", event.target.value)}><option value="">Tất cả lĩnh vực</option>{fields.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label><span>Lĩnh vực</span><select value={draftFilters.fieldId} onChange={(event) => changeDraftFilter("fieldId", event.target.value)}><option value="">Tất cả lĩnh vực</option>{catalogs.fields.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
         <label><span>Thủ tục hành chính</span><select value={draftFilters.procedureId} onChange={(event) => changeDraftFilter("procedureId", event.target.value)}><option value="">Tất cả thủ tục</option>{filteredProcedures.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
-        <label><span>Phòng ban</span><select value={draftFilters.departmentId} onChange={(event) => changeDraftFilter("departmentId", event.target.value)}><option value="">Tất cả phòng ban</option>{departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+        <label><span>Phòng ban</span><select value={draftFilters.departmentId} onChange={(event) => changeDraftFilter("departmentId", event.target.value)}><option value="">Tất cả phòng ban</option>{catalogs.departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
         <label><span>Người xử lý</span><select value={draftFilters.assignedUserId} onChange={(event) => changeDraftFilter("assignedUserId", event.target.value)}><option value="">Tất cả người xử lý</option>{filteredUsers.map((item) => <option key={item.id} value={item.id}>{item.fullName}</option>)}</select></label>
-        <label><span>Loại cảnh báo</span><select value={draftFilters.alertLevel} onChange={(event) => changeDraftFilter("alertLevel", event.target.value)}><option value="">Tất cả cảnh báo</option>{alertLevels.map((level) => <option key={level} value={level}>{level}</option>)}</select></label>
+        <label><span>Loại cảnh báo</span><select value={draftFilters.alertLevel} onChange={(event) => changeDraftFilter("alertLevel", event.target.value)}><option value="">Tất cả cảnh báo</option>{alertLevels.map((level) => <option key={level.value} value={level.value}>{level.label}</option>)}</select></label>
         <div className="cases-filter-card__actions"><button className="cases-button cases-button--primary" type="submit"><Filter size={15} /> Lọc</button><button className="cases-button cases-button--secondary" type="button" onClick={resetFilters}><RotateCcw size={15} /> Đặt lại</button></div>
+        {catalogError && <p className="case-form-error" role="alert">{catalogError}</p>}
       </form>
 
       <article className="cases-table-card alerts-table-card">
-        <div className="cases-table-card__header"><h2>Danh sách cảnh báo</h2><span>{filteredCases.length} hồ sơ</span></div>
+        <div className="cases-table-card__header"><h2>Danh sách cảnh báo</h2><span>{totalCount} hồ sơ</span></div>
         <div className="cases-table-wrap">
           <table className="cases-table alerts-table">
             <thead><tr><th>Mã hồ sơ</th><th>Tên hồ sơ</th><th>Lĩnh vực</th><th>Thủ tục hành chính</th><th>Phòng ban</th><th>Người xử lý</th><th>Hạn xử lý</th><th>Ngày hẹn trả</th><th>Thời hạn</th><th>Mức cảnh báo</th><th>Thao tác</th></tr></thead>
             <tbody>
-              {filteredCases.map((caseItem) => {
-                const { department, field, procedure, user } = getCaseRelations(caseItem);
+              {loading && <tr><td className="cases-table__empty" colSpan="11">Đang tải dữ liệu cảnh báo...</td></tr>}
+              {!loading && loadError && <tr><td className="cases-table__empty" colSpan="11" role="alert">Lỗi: {loadError}</td></tr>}
+              {!loading && !loadError && caseList.map((caseItem) => {
+                const alertLevel = getAlertLevel(caseItem.dueDate, now);
                 return (
                   <tr key={caseItem.id}>
-                    <td className="cases-table__code">{caseItem.caseCode}</td><td className="cases-table__name">{caseItem.caseName}</td><td>{field?.name}</td><td>{procedure?.name}</td><td>{department?.name}</td><td>{user?.fullName}</td><td>{formatDateTime(caseItem.dueDate)}</td><td>{formatDateTime(caseItem.appointmentReturnDate)}</td>
-                    <td className={`alerts-countdown alerts-countdown--${getAlertKey(caseItem.alertLevel)}`}>{formatCountdown(caseItem.appointmentReturnDate, now)}</td><td><AlertBadge level={caseItem.alertLevel} /></td>
+                    <td className="cases-table__code">{caseItem.caseCode}</td><td className="cases-table__name">{caseItem.caseName}</td><td>{caseItem.procedureFieldName || "—"}</td><td>{caseItem.procedureName || "—"}</td><td>{caseItem.departmentName || "—"}</td><td>{caseItem.assigneeName || "—"}</td><td>{formatDateTime(caseItem.dueDate)}</td><td>{formatDateTime(caseItem.appointmentReturnDate)}</td>
+                    <td className={`alerts-countdown alerts-countdown--${getAlertKey(alertLevel)}`}>{formatCountdown(caseItem.dueDate, now)}</td><td><AlertBadge level={alertLevel} /></td>
                     <td><div className="cases-row-actions"><button aria-label={`Xem hồ sơ ${caseItem.caseCode}`} className="cases-action-button" title="Xem hồ sơ" type="button" onClick={() => setSelectedCase(caseItem)}><Eye size={14} /></button>{isAdmin && <button aria-label={`Gửi nhắc nhở ${caseItem.caseCode}`} className="cases-action-button alerts-remind-button" title="Gửi nhắc nhở" type="button" onClick={() => setReminderCase(caseItem)}><Send size={14} /></button>}</div></td>
                   </tr>
                 );
               })}
-              {!filteredCases.length && <tr><td className="cases-table__empty" colSpan="11">Không tìm thấy cảnh báo phù hợp.</td></tr>}
+              {!loading && !loadError && !caseList.length && <tr><td className="cases-table__empty" colSpan="11">Không có hồ sơ cảnh báo</td></tr>}
             </tbody>
           </table>
+        </div>
+        <div className="cases-pagination">
+          <span>Trang {currentPage} / {totalPages}</span>
+          <div>
+            <button aria-label="Trang trước" disabled={loading || currentPage === 1} type="button" onClick={() => changePage(currentPage - 1)}><ChevronLeft size={16} /> Previous</button>
+            <button aria-label="Trang sau" disabled={loading || currentPage === totalPages} type="button" onClick={() => changePage(currentPage + 1)}>Next <ChevronRight size={16} /></button>
+          </div>
         </div>
       </article>
 

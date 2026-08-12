@@ -14,6 +14,8 @@ namespace HoSoMonitoring.Data.Repositories
     public class CaseRepository
         : RepositoryBase<Case, int>, ICaseRepository
     {
+        private const int AlertWarningThresholdDays = 14;
+
         private readonly IMapper _mapper;
         private readonly AdministrativeUnitOptions _administrativeUnit;
 
@@ -43,6 +45,244 @@ namespace HoSoMonitoring.Data.Repositories
             return _context.Cases.AnyAsync(item =>
                 item.ExternalCaseCode == externalCaseCode);
         }
+
+        public Task<Case?> GetDetailByIdAsync(int id)
+        {
+            return _context.Cases
+                .AsNoTracking()
+                .Include(item => item.Procedure)
+                    .ThenInclude(procedure => procedure!.ProcedureField)
+                .Include(item => item.Department)
+                .Include(item => item.CurrentAssignee)
+                .FirstOrDefaultAsync(item => item.Id == id);
+        }
+
+        public async Task<CaseAlertPageResult> GetAlertsPagingAsync(
+            CaseAlertType? type,
+            string? keyword,
+            int? procedureFieldId,
+            int? procedureId,
+            int? departmentId,
+            int? assignedUserId,
+            int pageIndex,
+            int pageSize)
+        {
+            var now = DateTime.Now;
+            var tomorrow = now.Date.AddDays(1);
+            var warningDeadline = now.AddDays(AlertWarningThresholdDays);
+
+            var baseQuery = _context.Cases
+                .AsNoTracking()
+                .Where(item =>
+                    item.CompletedAt == null
+                    && item.Status != CaseStatus.Completed
+                    && item.Status != CaseStatus.Cancelled
+                    && item.Deadline <= warningDeadline);
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                baseQuery = baseQuery.Where(item =>
+                    item.ExternalCaseCode.Contains(keyword)
+                    || item.ApplicantName.Contains(keyword));
+            }
+
+            if (procedureFieldId.HasValue)
+            {
+                baseQuery = baseQuery.Where(item =>
+                    item.Procedure!.ProcedureFieldId == procedureFieldId.Value);
+            }
+
+            if (procedureId.HasValue)
+            {
+                baseQuery = baseQuery.Where(item =>
+                    item.ProcedureId == procedureId.Value);
+            }
+
+            if (departmentId.HasValue)
+            {
+                baseQuery = baseQuery.Where(item =>
+                    item.DepartmentId == departmentId.Value);
+            }
+
+            if (assignedUserId.HasValue)
+            {
+                baseQuery = baseQuery.Where(item =>
+                    item.CurrentAssigneeId == assignedUserId.Value);
+            }
+
+            var upcomingCount = await baseQuery.CountAsync(item =>
+                item.Deadline >= tomorrow);
+            var dueTodayCount = await baseQuery.CountAsync(item =>
+                item.Deadline >= now && item.Deadline < tomorrow);
+            var overdueCount = await baseQuery.CountAsync(item =>
+                item.Deadline < now);
+
+            var query = type switch
+            {
+                CaseAlertType.Upcoming => baseQuery.Where(item =>
+                    item.Deadline >= tomorrow),
+                CaseAlertType.DueToday => baseQuery.Where(item =>
+                    item.Deadline >= now && item.Deadline < tomorrow),
+                CaseAlertType.Overdue => baseQuery.Where(item =>
+                    item.Deadline < now),
+                _ => baseQuery
+            };
+
+            var totalCount = await query.CountAsync();
+            var cases = await query
+                .OrderBy(item => item.Deadline)
+                .Skip((pageIndex - 1) * pageSize)
+                .Take(pageSize)
+                .ProjectTo<CaseInListDto>(_mapper.ConfigurationProvider)
+                .ToListAsync();
+
+            foreach (var caseDto in cases)
+            {
+                caseDto.OrganizationName = _administrativeUnit.OrganizationName;
+            }
+
+            return new CaseAlertPageResult
+            {
+                CurrentPage = pageIndex,
+                PageSize = pageSize,
+                TotalCount = totalCount,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                UpcomingCount = upcomingCount,
+                DueTodayCount = dueTodayCount,
+                OverdueCount = overdueCount,
+                Results = cases
+            };
+        }
+
+        public async Task<DashboardSummaryDto> GetDashboardSummaryAsync()
+        {
+            var now = DateTime.Now;
+            var warningDeadline = now.AddDays(AlertWarningThresholdDays);
+            var casesQuery = _context.Cases.AsNoTracking();
+
+            var summary = await casesQuery
+                .GroupBy(_ => 1)
+                .Select(group => new
+                {
+                    Total = group.Count(),
+                    Completed = group.Count(item =>
+                        item.Status == CaseStatus.Completed),
+                    Overdue = group.Count(item =>
+                        item.CompletedAt == null
+                        && item.Status != CaseStatus.Completed
+                        && item.Status != CaseStatus.Cancelled
+                        && item.Deadline < now),
+                    NearDeadline = group.Count(item =>
+                        item.CompletedAt == null
+                        && item.Status != CaseStatus.Completed
+                        && item.Status != CaseStatus.Cancelled
+                        && item.Deadline >= now
+                        && item.Deadline <= warningDeadline)
+                })
+                .SingleOrDefaultAsync();
+
+            var statusCounts = await casesQuery
+                .GroupBy(item => item.Status)
+                .Select(group => new
+                {
+                    Status = group.Key,
+                    Count = group.Count()
+                })
+                .OrderBy(item => item.Status)
+                .ToListAsync();
+
+            var firstTrendMonth = new DateTime(now.Year, now.Month, 1)
+                .AddMonths(-6);
+            var receivedByMonth = await casesQuery
+                .Where(item => item.ReceivedAt >= firstTrendMonth)
+                .GroupBy(item => new
+                {
+                    item.ReceivedAt.Year,
+                    item.ReceivedAt.Month
+                })
+                .Select(group => new
+                {
+                    group.Key.Year,
+                    group.Key.Month,
+                    Count = group.Count()
+                })
+                .ToListAsync();
+            var completedByMonth = await casesQuery
+                .Where(item => item.CompletedAt >= firstTrendMonth)
+                .GroupBy(item => new
+                {
+                    Year = item.CompletedAt!.Value.Year,
+                    Month = item.CompletedAt.Value.Month
+                })
+                .Select(group => new
+                {
+                    group.Key.Year,
+                    group.Key.Month,
+                    Count = group.Count()
+                })
+                .ToListAsync();
+
+            var trend = Enumerable.Range(0, 7)
+                .Select(offset => firstTrendMonth.AddMonths(offset))
+                .Select(month => new DashboardTrendItemDto
+                {
+                    Period = month.ToString("MM/yyyy"),
+                    Received = receivedByMonth
+                        .FirstOrDefault(item =>
+                            item.Year == month.Year
+                            && item.Month == month.Month)?.Count ?? 0,
+                    Completed = completedByMonth
+                        .FirstOrDefault(item =>
+                            item.Year == month.Year
+                            && item.Month == month.Month)?.Count ?? 0
+                })
+                .ToList();
+
+            var recentCases = await casesQuery
+                .OrderByDescending(item => item.ReceivedAt)
+                .Take(5)
+                .ProjectTo<CaseInListDto>(_mapper.ConfigurationProvider)
+                .ToListAsync();
+
+            foreach (var caseDto in recentCases)
+            {
+                caseDto.OrganizationName = _administrativeUnit.OrganizationName;
+            }
+
+            return new DashboardSummaryDto
+            {
+                TotalCases = summary?.Total ?? 0,
+                NearDeadlineCases = summary?.NearDeadline ?? 0,
+                OverdueCases = summary?.Overdue ?? 0,
+                CompletedCases = summary?.Completed ?? 0,
+                StatusDistribution = statusCounts
+                    .Select(item => new DashboardStatusItemDto
+                    {
+                        Status = item.Status,
+                        Key = item.Status.ToString(),
+                        Label = GetCaseStatusLabel(item.Status),
+                        Count = item.Count
+                    })
+                    .ToList(),
+                Trend = trend,
+                RecentCases = recentCases
+            };
+        }
+
+        private static string GetCaseStatusLabel(CaseStatus status)
+        {
+            return status switch
+            {
+                CaseStatus.Received => "Mới tiếp nhận",
+                CaseStatus.InProgress => "Đang xử lý",
+                CaseStatus.Pending => "Chờ xử lý",
+                CaseStatus.Completed => "Đã hoàn thành",
+                CaseStatus.Overdue => "Quá hạn",
+                CaseStatus.Cancelled => "Đã hủy",
+                _ => "Không xác định"
+            };
+        }
+
         public async Task<PageResult<CaseInListDto>> GetAllPagingAsync(
             string? keyword,
             int? departmentId,

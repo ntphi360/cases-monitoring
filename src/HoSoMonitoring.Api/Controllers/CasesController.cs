@@ -74,7 +74,7 @@ namespace HoSoMonitoring.Api.Controllers
         public async Task<ActionResult<CaseDto>> GetCaseById(int id)
         {
             var caseEntity = await _unitOfWork.Cases
-                .GetByIdAsync(id);
+                .GetDetailByIdAsync(id);
 
             if (caseEntity == null)
             {
@@ -97,6 +97,31 @@ namespace HoSoMonitoring.Api.Controllers
 
             var result = _mapper
                 .Map<List<CaseInListDto>>(cases);
+
+            return Ok(result);
+        }
+
+        // GET /api/cases/alerts?type=Overdue&keyword=H29&procedureFieldId=1&procedureId=1&departmentId=1&assignedUserId=1&pageIndex=1&pageSize=10
+        [HttpGet("alerts")]
+        public async Task<ActionResult<CaseAlertPageResult>> GetCaseAlerts(
+            [FromQuery] CaseAlertType? type,
+            [FromQuery] string? keyword,
+            [FromQuery] int? procedureFieldId,
+            [FromQuery] int? procedureId,
+            [FromQuery] int? departmentId,
+            [FromQuery] int? assignedUserId,
+            [FromQuery] int pageIndex = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var result = await _unitOfWork.Cases.GetAlertsPagingAsync(
+                type,
+                keyword,
+                procedureFieldId,
+                procedureId,
+                departmentId,
+                assignedUserId,
+                pageIndex,
+                pageSize);
 
             return Ok(result);
         }

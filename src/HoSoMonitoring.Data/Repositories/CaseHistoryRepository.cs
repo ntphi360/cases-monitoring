@@ -16,6 +16,8 @@ public class CaseHistoryRepository
     public Task<List<CaseHistory>> GetByCaseIdAsync(int caseId)
     {
         return _context.CaseHistories
+            .AsNoTracking()
+            .Include(x => x.User)
             .Where(x => x.CaseId == caseId)
             .OrderBy(x => x.CreatedAt)
             .ToListAsync();
