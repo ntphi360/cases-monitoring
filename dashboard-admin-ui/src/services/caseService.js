@@ -1,12 +1,16 @@
-import { API_BASE_URL } from "../config/api";
+import { apiFetch } from "./api";
 
 export async function getCases(params = {}) {
   const query = new URLSearchParams();
   const supportedParams = [
     "keyword",
     "departmentId",
+    "procedureFieldId",
     "procedureId",
+    "assignedUserId",
     "status",
+    "receivedFrom",
+    "receivedTo",
     "pageIndex",
     "pageSize",
   ];
@@ -19,13 +23,21 @@ export async function getCases(params = {}) {
   });
 
   const queryString = query.toString();
-  const response = await fetch(
-    `${API_BASE_URL}/Cases/paging${queryString ? `?${queryString}` : ""}`,
-  );
+  return apiFetch(`/Cases/paging${queryString ? `?${queryString}` : ""}`);
+}
 
-  if (!response.ok) {
-    throw new Error(`Không thể tải danh sách hồ sơ (${response.status} ${response.statusText})`);
-  }
+export function getProcedureFields() {
+  return apiFetch("/ProcedureFields");
+}
 
-  return response.json();
+export function getProcedures() {
+  return apiFetch("/Procedures");
+}
+
+export function getDepartments() {
+  return apiFetch("/Departments");
+}
+
+export function getUsers() {
+  return apiFetch("/Users");
 }

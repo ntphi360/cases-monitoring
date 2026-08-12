@@ -44,8 +44,12 @@ namespace HoSoMonitoring.Api.Controllers
         public async Task<ActionResult<PageResult<CaseInListDto>>> GetCasesPaging(
             [FromQuery] string? keyword,
             [FromQuery] int? departmentId,
+            [FromQuery] int? procedureFieldId,
             [FromQuery] int? procedureId,
+            [FromQuery] int? assignedUserId,
             [FromQuery] CaseStatus? status,
+            [FromQuery] DateTime? receivedFrom,
+            [FromQuery] DateTime? receivedTo,
             [FromQuery] int pageIndex = 1,
             [FromQuery] int pageSize = 10)
         {
@@ -53,8 +57,12 @@ namespace HoSoMonitoring.Api.Controllers
                 .GetAllPagingAsync(
                     keyword,
                     departmentId,
+                    procedureFieldId,
                     procedureId,
+                    assignedUserId,
                     status,
+                    receivedFrom,
+                    receivedTo,
                     pageIndex,
                     pageSize);
 

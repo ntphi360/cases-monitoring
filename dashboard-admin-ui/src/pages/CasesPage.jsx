@@ -1,18 +1,24 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Eye, Filter, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { useSelector } from "react-redux";
 
 import {
   caseHistories as initialCaseHistories,
   caseStatuses,
-  departments,
-  fields,
+  departments as mockDepartments,
+  fields as mockFields,
   getCaseRelations,
-  procedures,
+  procedures as mockProcedures,
   statusKeys,
-  users,
+  users as mockUsers,
 } from "../data/caseData";
-import { getCases } from "../services/caseService";
+import {
+  getCases,
+  getDepartments,
+  getProcedureFields,
+  getProcedures,
+  getUsers,
+} from "../services/caseService";
 import "./CasesPage.css";
 
 const PAGE_SIZE = 10;
@@ -24,6 +30,12 @@ const apiCaseStatuses = {
   4: "Đã hoàn thành",
   5: "Quá hạn",
   6: "Đã hủy",
+};
+
+const apiCaseStatusKeys = {
+  "Chờ xử lý": "upcoming",
+  "Đã hoàn thành": "completed",
+  "Đã hủy": "overdue",
 };
 
 function mapApiCase(item) {
@@ -59,6 +71,8 @@ const emptyFilters = {
   departmentId: "",
   assignedUserId: "",
   status: "",
+  receivedFrom: "",
+  receivedTo: "",
 };
 
 const emptyForm = {
@@ -93,7 +107,7 @@ function normalizeDateTime(value) {
 
 function StatusBadge({ status }) {
   return (
-    <span className={`cases-status-badge cases-status-badge--${statusKeys[status]}`}>
+    <span className={`cases-status-badge cases-status-badge--${statusKeys[status] ?? apiCaseStatusKeys[status] ?? "new"}`}>
       {status}
     </span>
   );
@@ -201,8 +215,8 @@ function getCaseFormValues(caseItem) {
 function CaseForm({ existingCases, initialCase, onClose, onSave }) {
   const [form, setForm] = useState(() => getCaseFormValues(initialCase));
   const [error, setError] = useState("");
-  const availableProcedures = procedures.filter((item) => item.fieldId === form.fieldId);
-  const availableUsers = users.filter((item) => item.departmentId === form.departmentId);
+  const availableProcedures = mockProcedures.filter((item) => item.fieldId === form.fieldId);
+  const availableUsers = mockUsers.filter((item) => item.departmentId === form.departmentId);
 
   function updateForm(name, value) {
     setError("");
@@ -210,7 +224,7 @@ function CaseForm({ existingCases, initialCase, onClose, onSave }) {
   }
 
   function handleFieldChange(fieldId) {
-    const selectedField = fields.find((item) => item.id === fieldId);
+    const selectedField = mockFields.find((item) => item.id === fieldId);
     setError("");
     setForm((current) => ({
       ...current,
@@ -224,9 +238,9 @@ function CaseForm({ existingCases, initialCase, onClose, onSave }) {
   function handleSubmit(event) {
     event.preventDefault();
     const submittedAppointmentReturnDate = event.currentTarget.elements.appointmentReturnDate.value;
-    const procedure = procedures.find((item) => item.id === form.procedureId);
-    const field = fields.find((item) => item.id === form.fieldId);
-    const user = users.find((item) => item.id === form.assignedUserId);
+    const procedure = mockProcedures.find((item) => item.id === form.procedureId);
+    const field = mockFields.find((item) => item.id === form.fieldId);
+    const user = mockUsers.find((item) => item.id === form.assignedUserId);
 
     if (existingCases.some((item) => item.id !== initialCase?.id && item.caseCode.toLowerCase() === form.caseCode.trim().toLowerCase())) {
       setError("Mã hồ sơ đã tồn tại.");
@@ -270,7 +284,7 @@ function CaseForm({ existingCases, initialCase, onClose, onSave }) {
             <span>Lĩnh vực <em>*</em></span>
             <select required value={form.fieldId} onChange={(event) => handleFieldChange(event.target.value)}>
               <option value="">Chọn lĩnh vực</option>
-              {fields.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              {mockFields.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </label>
           <label>
@@ -284,7 +298,7 @@ function CaseForm({ existingCases, initialCase, onClose, onSave }) {
             <span>Phòng ban <em>*</em></span>
             <select disabled required value={form.departmentId}>
               <option value="">Tự động theo lĩnh vực</option>
-              {departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              {mockDepartments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
             </select>
           </label>
           <label>
@@ -359,6 +373,15 @@ function CasesPage() {
   const [caseList, setCaseList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [catalogError, setCatalogError] = useState("");
+  const [catalogs, setCatalogs] = useState({
+    fields: [],
+    procedures: [],
+    departments: [],
+    users: [],
+  });
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [historyList, setHistoryList] = useState(initialCaseHistories);
   const [draftFilters, setDraftFilters] = useState(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState(emptyFilters);
@@ -371,10 +394,55 @@ function CasesPage() {
   useEffect(() => {
     let isCurrent = true;
 
-    getCases({ pageIndex: 1, pageSize: 100 })
+    Promise.all([
+      getProcedureFields(),
+      getProcedures(),
+      getDepartments(),
+      getUsers(),
+    ])
+      .then(([fields, procedures, departments, users]) => {
+        if (!isCurrent) return;
+        setCatalogs({
+          fields: (fields ?? []).filter((item) => item.isActive !== false),
+          procedures: (procedures ?? []).filter((item) => item.isActive !== false),
+          departments: (departments ?? []).filter((item) => item.isActive !== false),
+          users: (users ?? []).filter((item) => item.isActive !== false),
+        });
+      })
+      .catch((error) => {
+        if (!isCurrent) return;
+        setCatalogError(error.message || "Không thể tải dữ liệu bộ lọc.");
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isCurrent = true;
+    setLoading(true);
+    setLoadError("");
+
+    getCases({
+      keyword: appliedFilters.search.trim(),
+      procedureFieldId: appliedFilters.fieldId,
+      procedureId: appliedFilters.procedureId,
+      departmentId: appliedFilters.departmentId,
+      assignedUserId: appliedFilters.assignedUserId,
+      status: appliedFilters.status,
+      receivedFrom: appliedFilters.receivedFrom,
+      receivedTo: appliedFilters.receivedTo,
+      pageIndex: currentPage,
+      pageSize: PAGE_SIZE,
+    })
       .then((response) => {
         if (!isCurrent) return;
         setCaseList((response.results ?? []).map(mapApiCase));
+        setTotalCount(response.totalCount ?? 0);
+        const pageCount = Math.max(response.totalPages ?? 0, 1);
+        setTotalPages(pageCount);
+        if (currentPage > pageCount) setCurrentPage(pageCount);
       })
       .catch((error) => {
         if (!isCurrent) return;
@@ -387,45 +455,32 @@ function CasesPage() {
     return () => {
       isCurrent = false;
     };
-  }, []);
+  }, [appliedFilters, currentPage]);
 
-  const filteredProcedures = procedures.filter((item) => !draftFilters.fieldId || item.fieldId === draftFilters.fieldId);
-  const filteredUsers = users.filter((item) => !draftFilters.departmentId || item.departmentId === draftFilters.departmentId);
-
-  const filteredCases = useMemo(() => caseList.filter((caseItem) => {
-    const { department, field, procedure, user } = getCaseRelations(caseItem);
-    const search = appliedFilters.search.trim().toLocaleLowerCase("vi");
-    const matchesSearch = !search || caseItem.caseCode.toLocaleLowerCase("vi").includes(search) || caseItem.caseName.toLocaleLowerCase("vi").includes(search);
-
-    return matchesSearch
-      && (!appliedFilters.fieldId || field?.id === appliedFilters.fieldId)
-      && (!appliedFilters.procedureId || procedure?.id === appliedFilters.procedureId)
-      && (!appliedFilters.departmentId || department?.id === appliedFilters.departmentId)
-      && (!appliedFilters.assignedUserId || user?.id === appliedFilters.assignedUserId)
-      && (!appliedFilters.status || caseItem.status === appliedFilters.status);
-  }), [appliedFilters, caseList]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredCases.length / PAGE_SIZE));
-  const pageCases = filteredCases.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const filteredProcedures = catalogs.procedures.filter((item) =>
+    !draftFilters.fieldId
+    || String(item.procedureFieldId) === String(draftFilters.fieldId));
+  const pageCases = caseList;
 
   function changeDraftFilter(name, value) {
     setDraftFilters((current) => {
       const next = { ...current, [name]: value };
-      if (name === "fieldId" && !procedures.some((item) => item.id === current.procedureId && item.fieldId === value)) next.procedureId = "";
-      if (name === "departmentId" && !users.some((item) => item.id === current.assignedUserId && item.departmentId === value)) next.assignedUserId = "";
+      if (name === "fieldId" && !catalogs.procedures.some((item) =>
+        String(item.id) === String(current.procedureId)
+        && String(item.procedureFieldId) === String(value))) next.procedureId = "";
       return next;
     });
   }
 
   function applyFilters(event) {
     event.preventDefault();
-    setAppliedFilters(draftFilters);
+    setAppliedFilters({ ...draftFilters });
     setCurrentPage(1);
   }
 
   function resetFilters() {
-    setDraftFilters(emptyFilters);
-    setAppliedFilters(emptyFilters);
+    setDraftFilters({ ...emptyFilters });
+    setAppliedFilters({ ...emptyFilters });
     setCurrentPage(1);
   }
 
@@ -468,9 +523,12 @@ function CasesPage() {
   }
 
   function deleteCase() {
-    const nextTotalPages = Math.max(1, Math.ceil((filteredCases.length - 1) / PAGE_SIZE));
+    const nextTotalCount = Math.max(0, totalCount - 1);
+    const nextTotalPages = Math.max(1, Math.ceil(nextTotalCount / PAGE_SIZE));
     setCaseList((current) => current.filter((item) => item.id !== deletingCase.id));
     setHistoryList((current) => current.filter((item) => item.caseId !== deletingCase.id));
+    setTotalCount(nextTotalCount);
+    setTotalPages(nextTotalPages);
     setCurrentPage((page) => Math.min(page, nextTotalPages));
     setDeletingCase(null);
   }
@@ -501,7 +559,7 @@ function CasesPage() {
           <span>Lĩnh vực</span>
           <select value={draftFilters.fieldId} onChange={(event) => changeDraftFilter("fieldId", event.target.value)}>
             <option value="">Tất cả lĩnh vực</option>
-            {fields.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            {catalogs.fields.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
         </label>
         <label>
@@ -515,33 +573,44 @@ function CasesPage() {
           <span>Phòng ban</span>
           <select value={draftFilters.departmentId} onChange={(event) => changeDraftFilter("departmentId", event.target.value)}>
             <option value="">Tất cả phòng ban</option>
-            {departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+            {catalogs.departments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
         </label>
         <label>
           <span>Người xử lý</span>
           <select value={draftFilters.assignedUserId} onChange={(event) => changeDraftFilter("assignedUserId", event.target.value)}>
             <option value="">Tất cả người xử lý</option>
-            {filteredUsers.map((item) => <option key={item.id} value={item.id}>{item.fullName}</option>)}
+            {catalogs.users.map((item) => <option key={item.id} value={item.id}>{item.fullName}</option>)}
           </select>
         </label>
         <label>
           <span>Trạng thái</span>
           <select value={draftFilters.status} onChange={(event) => changeDraftFilter("status", event.target.value)}>
             <option value="">Tất cả trạng thái</option>
-            {caseStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
+            {Object.entries(apiCaseStatuses).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
           </select>
+        </label>
+        <label>
+          <span>Từ ngày tiếp nhận</span>
+          <input type="date" value={draftFilters.receivedFrom} onChange={(event) => changeDraftFilter("receivedFrom", event.target.value)} />
+        </label>
+        <label>
+          <span>Đến ngày tiếp nhận</span>
+          <input min={draftFilters.receivedFrom || undefined} type="date" value={draftFilters.receivedTo} onChange={(event) => changeDraftFilter("receivedTo", event.target.value)} />
         </label>
         <div className="cases-filter-card__actions">
           <button className="cases-button cases-button--primary" type="submit"><Filter size={15} /> Lọc</button>
           <button className="cases-button cases-button--secondary" type="button" onClick={resetFilters}><RotateCcw size={15} /> Đặt lại</button>
         </div>
+        {catalogError && <p className="case-form-error" role="alert">{catalogError}</p>}
       </form>
 
       <article className="cases-table-card">
         <div className="cases-table-card__header">
           <h2>Danh sách hồ sơ</h2>
-          <span>{filteredCases.length} hồ sơ</span>
+          <span>{totalCount} hồ sơ</span>
         </div>
         <div className="cases-table-wrap">
           <table className="cases-table">
@@ -561,17 +630,15 @@ function CasesPage() {
                   <td className="cases-table__empty" colSpan="11" role="alert">Lỗi: {loadError}</td>
                 </tr>
               )}
-              {pageCases.map((caseItem) => {
-                const { department, field, procedure, user } = getCaseRelations(caseItem);
-                return (
+              {pageCases.map((caseItem) => (
                   <tr key={caseItem.id}>
                     <td className="cases-table__code">{caseItem.caseCode}</td>
                     <td className="cases-table__name">{caseItem.caseName}</td>
-                    <td>{caseItem.procedureFieldName ?? field?.name ?? "—"}</td>
-                    <td>{caseItem.procedureName ?? procedure?.name ?? "—"}</td>
-                    <td>{caseItem.departmentName ?? department?.name ?? "—"}</td>
+                    <td>{caseItem.procedureFieldName ?? "—"}</td>
+                    <td>{caseItem.procedureName ?? "—"}</td>
+                    <td>{caseItem.departmentName ?? "—"}</td>
                     <td>{caseItem.organizationName ?? "—"}</td>
-                    <td>{caseItem.assigneeName ?? user?.fullName ?? "—"}</td>
+                    <td>{caseItem.assigneeName ?? "—"}</td>
                     <td>{formatDate(caseItem.receivedDate)}</td>
                     <td>{formatDateTime(caseItem.appointmentReturnDate)}</td>
                     <td><StatusBadge status={caseItem.status} /></td>
@@ -583,9 +650,8 @@ function CasesPage() {
                       </div>
                     </td>
                   </tr>
-                );
-              })}
-              {!loading && !loadError && !pageCases.length && <tr><td className="cases-table__empty" colSpan="11">Không tìm thấy hồ sơ phù hợp.</td></tr>}
+              ))}
+              {!loading && !loadError && !pageCases.length && <tr><td className="cases-table__empty" colSpan="11">Không có hồ sơ phù hợp</td></tr>}
             </tbody>
           </table>
         </div>

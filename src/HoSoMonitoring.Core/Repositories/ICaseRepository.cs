@@ -15,8 +15,12 @@ namespace HoSoMonitoring.Core.Repositories
         Task<PageResult<CaseInListDto>> GetAllPagingAsync(
             string? keyword,
             int? departmentId,
+            int? procedureFieldId,
             int? procedureId,
+            int? assignedUserId,
             CaseStatus? status,
+            DateTime? receivedFrom,
+            DateTime? receivedTo,
             int pageIndex,
             int pageSize);
     }

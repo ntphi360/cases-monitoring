@@ -46,23 +46,34 @@ namespace HoSoMonitoring.Data.Repositories
         public async Task<PageResult<CaseInListDto>> GetAllPagingAsync(
             string? keyword,
             int? departmentId,
+            int? procedureFieldId,
             int? procedureId,
+            int? assignedUserId,
             CaseStatus? status,
+            DateTime? receivedFrom,
+            DateTime? receivedTo,
             int pageIndex,
             int pageSize)
         {
-            var query = _context.Cases.AsQueryable();
+            var query = _context.Cases.AsNoTracking();
 
             if (!string.IsNullOrWhiteSpace(keyword))
             {
                 query = query.Where(x =>
-                    x.ExternalCaseCode.Contains(keyword));
+                    x.ExternalCaseCode.Contains(keyword)
+                    || x.ApplicantName.Contains(keyword));
             }
 
             if (departmentId.HasValue)
             {
                 query = query.Where(x =>
-                    x.DepartmentId == departmentId.Value);
+                    x.Procedure!.DepartmentId == departmentId.Value);
+            }
+
+            if (procedureFieldId.HasValue)
+            {
+                query = query.Where(x =>
+                    x.Procedure!.ProcedureFieldId == procedureFieldId.Value);
             }
 
             if (procedureId.HasValue)
@@ -71,10 +82,29 @@ namespace HoSoMonitoring.Data.Repositories
                     x.ProcedureId == procedureId.Value);
             }
 
+            if (assignedUserId.HasValue)
+            {
+                query = query.Where(x =>
+                    x.CurrentAssigneeId == assignedUserId.Value);
+            }
+
             if (status.HasValue)
             {
                 query = query.Where(x =>
                     x.Status == status.Value);
+            }
+
+            if (receivedFrom.HasValue)
+            {
+                query = query.Where(x =>
+                    x.ReceivedAt >= receivedFrom.Value.Date);
+            }
+
+            if (receivedTo.HasValue)
+            {
+                var receivedToExclusive = receivedTo.Value.Date.AddDays(1);
+                query = query.Where(x =>
+                    x.ReceivedAt < receivedToExclusive);
             }
 
             var totalCount = await query.CountAsync();
@@ -102,6 +132,5 @@ namespace HoSoMonitoring.Data.Repositories
                 Results = cases
             };
         }
-
     }
 }
