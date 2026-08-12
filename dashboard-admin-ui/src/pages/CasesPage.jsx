@@ -421,8 +421,6 @@ function CasesPage() {
 
   useEffect(() => {
     let isCurrent = true;
-    setLoading(true);
-    setLoadError("");
 
     getCases({
       keyword: appliedFilters.search.trim(),
@@ -442,7 +440,6 @@ function CasesPage() {
         setTotalCount(response.totalCount ?? 0);
         const pageCount = Math.max(response.totalPages ?? 0, 1);
         setTotalPages(pageCount);
-        if (currentPage > pageCount) setCurrentPage(pageCount);
       })
       .catch((error) => {
         if (!isCurrent) return;
@@ -474,14 +471,24 @@ function CasesPage() {
 
   function applyFilters(event) {
     event.preventDefault();
+    setLoading(true);
+    setLoadError("");
     setAppliedFilters({ ...draftFilters });
     setCurrentPage(1);
   }
 
   function resetFilters() {
+    setLoading(true);
+    setLoadError("");
     setDraftFilters({ ...emptyFilters });
     setAppliedFilters({ ...emptyFilters });
     setCurrentPage(1);
+  }
+
+  function changePage(page) {
+    setLoading(true);
+    setLoadError("");
+    setCurrentPage(page);
   }
 
   function addCase(caseItem) {
@@ -630,7 +637,7 @@ function CasesPage() {
                   <td className="cases-table__empty" colSpan="11" role="alert">Lỗi: {loadError}</td>
                 </tr>
               )}
-              {pageCases.map((caseItem) => (
+              {!loading && !loadError && pageCases.map((caseItem) => (
                   <tr key={caseItem.id}>
                     <td className="cases-table__code">{caseItem.caseCode}</td>
                     <td className="cases-table__name">{caseItem.caseName}</td>
@@ -658,8 +665,8 @@ function CasesPage() {
         <div className="cases-pagination">
           <span>Trang {currentPage} / {totalPages}</span>
           <div>
-            <button aria-label="Trang trước" disabled={currentPage === 1} type="button" onClick={() => setCurrentPage((page) => page - 1)}><ChevronLeft size={16} /> Previous</button>
-            <button aria-label="Trang sau" disabled={currentPage === totalPages} type="button" onClick={() => setCurrentPage((page) => page + 1)}>Next <ChevronRight size={16} /></button>
+            <button aria-label="Trang trước" disabled={loading || currentPage === 1} type="button" onClick={() => changePage(currentPage - 1)}><ChevronLeft size={16} /> Previous</button>
+            <button aria-label="Trang sau" disabled={loading || currentPage === totalPages} type="button" onClick={() => changePage(currentPage + 1)}>Next <ChevronRight size={16} /></button>
           </div>
         </div>
       </article>

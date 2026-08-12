@@ -51,7 +51,7 @@ public class CaseInListDto
                     options => options.MapFrom(source => source.Procedure!.ProcedureField!.Name))
                 .ForMember(
                     destination => destination.DepartmentName,
-                    options => options.MapFrom(source => source.Procedure!.Department!.Name))
+                    options => options.MapFrom(source => source.Department!.Name))
                 .ForMember(
                     destination => destination.AssigneeName,
                     options => options.MapFrom(source => source.CurrentAssignee!.FullName));

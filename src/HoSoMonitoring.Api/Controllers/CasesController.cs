@@ -39,7 +39,7 @@ namespace HoSoMonitoring.Api.Controllers
         }
 
         // GET /api/cases/paging?pageIndex=1&pageSize=10
-        // GET /api/cases/paging?keyword=HS&departmentId=1&procedureId=1&status=1&pageIndex=1&pageSize=10
+        // GET /api/cases/paging?keyword=HS&procedureFieldId=1&procedureId=1&departmentId=1&assignedUserId=1&status=1&receivedFrom=2026-08-01&receivedTo=2026-08-08&pageIndex=1&pageSize=10
         [HttpGet("paging")]
         public async Task<ActionResult<PageResult<CaseInListDto>>> GetCasesPaging(
             [FromQuery] string? keyword,

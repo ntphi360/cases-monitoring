@@ -67,7 +67,7 @@ namespace HoSoMonitoring.Data.Repositories
             if (departmentId.HasValue)
             {
                 query = query.Where(x =>
-                    x.Procedure!.DepartmentId == departmentId.Value);
+                    x.DepartmentId == departmentId.Value);
             }
 
             if (procedureFieldId.HasValue)
