@@ -22,6 +22,8 @@ namespace HoSoMonitoring.Core.Repositories
 
         Task<DashboardSummaryDto> GetDashboardSummaryAsync();
 
+        Task<ReportSummaryDto> GetReportSummaryAsync(ReportFilterDto filter);
+
         Task<bool> ExternalCaseCodeExistsAsync(string externalCaseCode);
 
         Task<Case?> GetDetailByIdAsync(int id);

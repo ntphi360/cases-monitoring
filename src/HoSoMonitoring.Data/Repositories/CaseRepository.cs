@@ -269,6 +269,237 @@ namespace HoSoMonitoring.Data.Repositories
             };
         }
 
+        public async Task<ReportSummaryDto> GetReportSummaryAsync(
+            ReportFilterDto filter)
+        {
+            var now = DateTime.Now;
+            var query = _context.Cases.AsNoTracking();
+
+            if (filter.From.HasValue)
+            {
+                query = query.Where(item =>
+                    item.ReceivedAt >= filter.From.Value.Date);
+            }
+
+            if (filter.To.HasValue)
+            {
+                var toExclusive = filter.To.Value.Date.AddDays(1);
+                query = query.Where(item => item.ReceivedAt < toExclusive);
+            }
+
+            if (filter.ProcedureFieldId.HasValue)
+            {
+                query = query.Where(item =>
+                    item.Procedure!.ProcedureFieldId
+                    == filter.ProcedureFieldId.Value);
+            }
+
+            if (filter.ProcedureId.HasValue)
+            {
+                query = query.Where(item =>
+                    item.ProcedureId == filter.ProcedureId.Value);
+            }
+
+            if (filter.DepartmentId.HasValue)
+            {
+                query = query.Where(item =>
+                    item.DepartmentId == filter.DepartmentId.Value);
+            }
+
+            if (filter.AssignedUserId.HasValue)
+            {
+                query = query.Where(item =>
+                    item.CurrentAssigneeId == filter.AssignedUserId.Value);
+            }
+
+            if (filter.Status.HasValue)
+            {
+                query = query.Where(item =>
+                    item.Status == filter.Status.Value);
+            }
+
+            var summary = await query
+                .GroupBy(_ => 1)
+                .Select(group => new
+                {
+                    Total = group.Count(),
+                    Completed = group.Count(item =>
+                        item.Status == CaseStatus.Completed),
+                    Processing = group.Count(item =>
+                        item.Status == CaseStatus.InProgress),
+                    Overdue = group.Count(item =>
+                        item.CompletedAt == null
+                        && item.Status != CaseStatus.Completed
+                        && item.Status != CaseStatus.Cancelled
+                        && item.Deadline < now)
+                })
+                .SingleOrDefaultAsync();
+
+            var byProcedureField = await query
+                .GroupBy(item => new
+                {
+                    Id = item.Procedure!.ProcedureFieldId,
+                    Name = item.Procedure.ProcedureField!.Name
+                })
+                .Select(group => new ReportGroupItemDto
+                {
+                    Id = group.Key.Id,
+                    Name = group.Key.Name,
+                    Count = group.Count()
+                })
+                .OrderByDescending(item => item.Count)
+                .ToListAsync();
+
+            var byProcedure = await query
+                .GroupBy(item => new
+                {
+                    Id = item.ProcedureId,
+                    Name = item.Procedure!.Name
+                })
+                .Select(group => new ReportGroupItemDto
+                {
+                    Id = group.Key.Id,
+                    Name = group.Key.Name,
+                    Count = group.Count()
+                })
+                .OrderByDescending(item => item.Count)
+                .ToListAsync();
+
+            var byDepartment = await query
+                .GroupBy(item => new
+                {
+                    Id = item.DepartmentId,
+                    Name = item.Department!.Name
+                })
+                .Select(group => new ReportGroupItemDto
+                {
+                    Id = group.Key.Id,
+                    Name = group.Key.Name,
+                    Count = group.Count()
+                })
+                .OrderByDescending(item => item.Count)
+                .ToListAsync();
+
+            var byAssignee = await query
+                .GroupBy(item => new
+                {
+                    Id = item.CurrentAssigneeId,
+                    Name = item.CurrentAssignee == null
+                        ? "Chưa phân công"
+                        : item.CurrentAssignee.FullName
+                })
+                .Select(group => new ReportGroupItemDto
+                {
+                    Id = group.Key.Id,
+                    Name = group.Key.Name,
+                    Count = group.Count()
+                })
+                .OrderByDescending(item => item.Count)
+                .ToListAsync();
+
+            var useDailyTrend = filter.From.HasValue
+                && filter.To.HasValue
+                && (filter.To.Value.Date - filter.From.Value.Date).TotalDays <= 62;
+
+            List<ReportTrendItemDto> trend;
+            if (useDailyTrend)
+            {
+                var received = await query
+                    .GroupBy(item => item.ReceivedAt.Date)
+                    .Select(group => new
+                    {
+                        Date = group.Key,
+                        Count = group.Count()
+                    })
+                    .ToListAsync();
+                var completed = await query
+                    .Where(item => item.CompletedAt.HasValue)
+                    .GroupBy(item => item.CompletedAt!.Value.Date)
+                    .Select(group => new
+                    {
+                        Date = group.Key,
+                        Count = group.Count()
+                    })
+                    .ToListAsync();
+
+                trend = received.Select(item => item.Date)
+                    .Concat(completed.Select(item => item.Date))
+                    .Distinct()
+                    .OrderBy(date => date)
+                    .Select(date => new ReportTrendItemDto
+                    {
+                        Period = date.ToString("yyyy-MM-dd"),
+                        ReceivedCount = received
+                            .FirstOrDefault(item => item.Date == date)?.Count ?? 0,
+                        CompletedCount = completed
+                            .FirstOrDefault(item => item.Date == date)?.Count ?? 0
+                    })
+                    .ToList();
+            }
+            else
+            {
+                var received = await query
+                    .GroupBy(item => new
+                    {
+                        item.ReceivedAt.Year,
+                        item.ReceivedAt.Month
+                    })
+                    .Select(group => new
+                    {
+                        group.Key.Year,
+                        group.Key.Month,
+                        Count = group.Count()
+                    })
+                    .ToListAsync();
+                var completed = await query
+                    .Where(item => item.CompletedAt.HasValue)
+                    .GroupBy(item => new
+                    {
+                        Year = item.CompletedAt!.Value.Year,
+                        Month = item.CompletedAt.Value.Month
+                    })
+                    .Select(group => new
+                    {
+                        group.Key.Year,
+                        group.Key.Month,
+                        Count = group.Count()
+                    })
+                    .ToListAsync();
+
+                trend = received
+                    .Select(item => (item.Year, item.Month))
+                    .Concat(completed.Select(item => (item.Year, item.Month)))
+                    .Distinct()
+                    .OrderBy(item => item.Year)
+                    .ThenBy(item => item.Month)
+                    .Select(period => new ReportTrendItemDto
+                    {
+                        Period = $"{period.Month:00}/{period.Year}",
+                        ReceivedCount = received.FirstOrDefault(item =>
+                            item.Year == period.Year
+                            && item.Month == period.Month)?.Count ?? 0,
+                        CompletedCount = completed.FirstOrDefault(item =>
+                            item.Year == period.Year
+                            && item.Month == period.Month)?.Count ?? 0
+                    })
+                    .ToList();
+            }
+
+            return new ReportSummaryDto
+            {
+                TotalCases = summary?.Total ?? 0,
+                CompletedCases = summary?.Completed ?? 0,
+                ProcessingCases = summary?.Processing ?? 0,
+                OverdueCases = summary?.Overdue ?? 0,
+                TrendGranularity = useDailyTrend ? "day" : "month",
+                ByProcedureField = byProcedureField,
+                ByProcedure = byProcedure,
+                ByDepartment = byDepartment,
+                ByAssignee = byAssignee,
+                Trend = trend
+            };
+        }
+
         private static string GetCaseStatusLabel(CaseStatus status)
         {
             return status switch
