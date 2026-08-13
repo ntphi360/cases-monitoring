@@ -1,6 +1,8 @@
 using HoSoMonitoring.Data;
 using HoSoMonitoring.Data.Seeders;
 using Microsoft.EntityFrameworkCore;
+using HoSoMonitoring.Core.Content;
+using Microsoft.AspNetCore.Identity;
 
 namespace HoSoMonitoring.Api;
 
@@ -17,6 +19,12 @@ public static class MigrationManager
             .SeedAsync(
                 context,
                 fixCaseDepartments: app.Environment.IsDevelopment())
+            .Wait();
+        new IdentitySeeder().SeedAsync(
+            scope.ServiceProvider.GetRequiredService<UserManager<User>>(),
+            scope.ServiceProvider.GetRequiredService<RoleManager<AppRole>>(),
+            scope.ServiceProvider.GetRequiredService<IConfiguration>(),
+            scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger<IdentitySeeder>())
             .Wait();
 
         return app;

@@ -8,10 +8,15 @@ import AlertsPage from "../pages/AlertsPage";
 import NotificationsPage from "../pages/NotificationsPage";
 import ReportsPage from "../pages/ReportsPage";
 import ImportPage from "../pages/ImportPage";
+import LoginPage from "../pages/LoginPage";
+import UsersPage from "../pages/UsersPage";
+import { AdminRoute, ProtectedRoute } from './ProtectedRoute'
 
 function AppRoutes() {
   return (
     <Routes>
+      <Route path="login" element={<LoginPage />} />
+      <Route element={<ProtectedRoute />}>
       <Route path="/" element={<MainLayout />}>
         <Route index element={<DashboardPage />} />
 
@@ -27,7 +32,11 @@ function AppRoutes() {
 
         <Route path="reports" element={<ReportsPage />} />
 
-        <Route path="import" element={<ImportPage />} />
+        <Route element={<AdminRoute />}>
+          <Route path="import" element={<ImportPage />} />
+          <Route path="users" element={<UsersPage />} />
+        </Route>
+      </Route>
       </Route>
     </Routes>
   );

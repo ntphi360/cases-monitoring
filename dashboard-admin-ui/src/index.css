@@ -266,6 +266,25 @@ button {
   gap: 6px;
 }
 
+.header-user-menu { position: relative; min-width: 0; }
+.header-user-trigger { display: flex; min-width: 0; align-items: center; gap: 8px; padding: 4px 7px 4px 4px; color: #52627d; background: transparent; border: 0; border-radius: 9px; cursor: pointer; }
+.header-user-trigger:hover, .header-user-trigger[aria-expanded="true"] { background: #f2f6fb; }
+.header-user-avatar { display: grid; width: 34px; height: 34px; flex: 0 0 34px; overflow: hidden; place-items: center; color: #fff; background: linear-gradient(145deg, #2386f6, #075ce5); border-radius: 50%; font-size: 11px; font-weight: 800; letter-spacing: .02em; }
+.header-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.header-user-summary { display: flex; min-width: 0; max-width: 170px; flex-direction: column; align-items: flex-start; gap: 1px; }
+.header-user-summary strong { max-width: 100%; overflow: hidden; color: #33445f; font-size: 10.5px; text-overflow: ellipsis; white-space: nowrap; }
+.header-user-summary small { color: #7a889c; font-size: 8.5px; font-weight: 700; }
+.header-user-trigger > svg { flex: 0 0 auto; transition: transform 160ms ease; }
+.header-user-chevron--open { transform: rotate(180deg); }
+.header-user-dropdown { position: absolute; z-index: 100; top: calc(100% + 8px); right: 0; width: min(270px, calc(100vw - 24px)); overflow: hidden; background: #fff; border: 1px solid #dfe6ef; border-radius: 10px; box-shadow: 0 14px 38px rgba(24, 42, 70, .18); }
+.header-user-dropdown__profile { display: flex; min-width: 0; flex-direction: column; gap: 4px; padding: 13px; border-bottom: 1px solid #edf1f6; }
+.header-user-dropdown__profile strong { overflow: hidden; color: #1e2d52; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.header-user-dropdown__profile span { overflow: hidden; color: #718096; font-size: 9.5px; text-overflow: ellipsis; white-space: nowrap; }
+.header-user-dropdown__profile small { align-self: flex-start; padding: 3px 6px; color: #1768dc; background: #eaf3ff; border-radius: 5px; font-size: 8px; font-weight: 750; }
+.header-user-dropdown > button { display: flex; width: 100%; min-height: 40px; align-items: center; gap: 8px; padding: 0 13px; color: #c92f39; background: #fff; border: 0; cursor: pointer; font-size: 10.5px; font-weight: 650; }
+.header-user-dropdown > button:hover { background: #fff5f5; }
+.header-user-dropdown > button:disabled { opacity: .58; cursor: wait; }
+
 .icon-button {
   position: relative;
   display: grid;
@@ -443,6 +462,9 @@ button {
   .main-content {
     padding: 16px 14px;
   }
+
+  .header-user-summary { display: none; }
+  .header-user-trigger { gap: 3px; padding-right: 3px; }
 }
 
 @media (max-width: 360px) {

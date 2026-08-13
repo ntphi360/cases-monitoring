@@ -2,9 +2,11 @@ using HoSoMonitoring.Core.Models;
 using HoSoMonitoring.Core.Models.Content;
 using HoSoMonitoring.Core.SeedWorks;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace HoSoMonitoring.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class NotificationsController : ControllerBase
@@ -26,7 +28,7 @@ public class NotificationsController : ControllerBase
         pageIndex = Math.Max(pageIndex, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
         return Ok(await _unitOfWork.Notifications.GetPagingAsync(
-            userId,
+            ResolveUserId(userId),
             isRead,
             pageIndex,
             pageSize));
@@ -40,6 +42,7 @@ public class NotificationsController : ControllerBase
         {
             return NotFound();
         }
+        if (!CanAccess(notification.UserId)) return Forbid();
 
         return Ok(new NotificationDto
         {
@@ -61,6 +64,7 @@ public class NotificationsController : ControllerBase
         {
             return NotFound();
         }
+        if (!CanAccess(notification.UserId)) return Forbid();
 
         if (!notification.IsRead)
         {
@@ -74,7 +78,17 @@ public class NotificationsController : ControllerBase
     [HttpPut("read-all")]
     public async Task<IActionResult> MarkAllRead([FromQuery] int? userId)
     {
-        await _unitOfWork.Notifications.MarkAllReadAsync(userId);
+        await _unitOfWork.Notifications.MarkAllReadAsync(ResolveUserId(userId));
         return NoContent();
     }
+
+    private int ResolveUserId(int? requestedUserId)
+    {
+        if (User.IsInRole(Roles.Admin) && requestedUserId.HasValue) return requestedUserId.Value;
+        return int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    }
+
+    private bool CanAccess(int ownerUserId) =>
+        User.IsInRole(Roles.Admin)
+        || ownerUserId == int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 }

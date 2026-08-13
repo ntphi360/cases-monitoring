@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HoSoMonitoring.Api.Controllers;
 
+[Authorize(Roles = Roles.Admin)]
 [ApiController]
 [Route("api/[controller]")]
 public class RemindersController : ControllerBase
@@ -15,7 +16,6 @@ public class RemindersController : ControllerBase
         _reminderService = reminderService;
     }
 
-    // TODO(Auth): Add [Authorize(Roles = "ADMIN")] when authentication is enabled.
     [HttpPost]
     public async Task<ActionResult<SendReminderResultDto>> SendReminder(
         [FromBody] SendReminderRequest request,

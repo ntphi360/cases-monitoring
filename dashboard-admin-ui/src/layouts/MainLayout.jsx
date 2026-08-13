@@ -3,6 +3,7 @@ import {
   Bell,
   BellRing,
   ChartNoAxesCombined,
+  ChevronDown,
   ChevronRight,
   FileText,
   FolderKanban,
@@ -10,8 +11,12 @@ import {
   LayoutDashboard,
   Menu,
   ShieldCheck,
+  LogOut,
+  UserRound,
 } from "lucide-react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { signOut } from "../features/auth/authSlice";
 import {
   getNotificationPreview,
   markAllNotificationsRead,
@@ -24,7 +29,8 @@ const menuItems = [
   { label: "Cảnh báo", path: "/alerts", icon: BellRing },
   { label: "Thông báo", path: "/notifications", icon: Bell },
   { label: "Thống kê & Báo cáo", path: "/reports", icon: ChartNoAxesCombined },
-  { label: "Import dữ liệu", path: "/import", icon: Import },
+  { label: "Import dữ liệu", path: "/import", icon: Import, roles: ["ADMIN"] },
+  { label: "Người dùng", path: "/users", icon: UserRound, roles: ["ADMIN"] },
 ];
 
 const pageTitles = {
@@ -34,7 +40,14 @@ const pageTitles = {
   "/notifications": "Thông báo",
   "/reports": "Thống kê & Báo cáo",
   "/import": "Import dữ liệu",
+  "/users": "Người dùng",
 };
+
+function getInitials(fullName) {
+  const words = String(fullName || "").trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return "?";
+  return `${words[0][0]}${words.length > 1 ? words.at(-1)[0] : ""}`.toLocaleUpperCase("vi");
+}
 
 function getBreadcrumbs(pathname) {
   if (pathname === "/") return [{ label: "Dashboard", path: "/" }];
@@ -50,7 +63,7 @@ function getBreadcrumbs(pathname) {
   });
 }
 
-function Sidebar({ isCollapsed, isMobileOpen, onNavigate }) {
+function Sidebar({ isCollapsed, isMobileOpen, onNavigate, roles }) {
   return (
     <aside
       className={`sidebar${isMobileOpen ? " sidebar--mobile-open" : ""}`}
@@ -68,7 +81,7 @@ function Sidebar({ isCollapsed, isMobileOpen, onNavigate }) {
       </div>
 
       <nav className="sidebar__nav" aria-label="Điều hướng chính">
-        {menuItems.map(({ label, path, icon: Icon }) => (
+        {menuItems.filter((item) => !item.roles || item.roles.some((role) => roles.includes(role))).map(({ label, path, icon: Icon }) => (
           <NavLink
             className={({ isActive }) =>
               `sidebar__link${isActive ? " sidebar__link--active" : ""}`
@@ -110,9 +123,13 @@ function Breadcrumbs({ items }) {
 }
 
 function Header({ breadcrumbs, isMobileOpen, onToggleSidebar }) {
+  const dispatch = useDispatch();
   const navigate = useNavigate();
-  const userId = undefined;
+  const user = useSelector((state) => state.auth.user);
+  const userId = user?.id;
+  const primaryRole = user?.roles?.[0] || "";
   const notificationRef = useRef(null);
+  const userMenuRef = useRef(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
@@ -120,6 +137,9 @@ function Header({ breadcrumbs, isMobileOpen, onToggleSidebar }) {
   const [notificationError, setNotificationError] = useState("");
   const [notificationActionId, setNotificationActionId] = useState(null);
   const [markingAll, setMarkingAll] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   useEffect(() => {
     let isCurrent = true;
@@ -162,6 +182,15 @@ function Header({ breadcrumbs, isMobileOpen, onToggleSidebar }) {
     return () => document.removeEventListener("click", closeOnOutsideClick);
   }, [notificationOpen]);
 
+  useEffect(() => {
+    if (!userMenuOpen) return undefined;
+    function closeOnOutsideClick(event) {
+      if (!userMenuRef.current?.contains(event.target)) setUserMenuOpen(false);
+    }
+    document.addEventListener("click", closeOnOutsideClick);
+    return () => document.removeEventListener("click", closeOnOutsideClick);
+  }, [userMenuOpen]);
+
   function formatNotificationTime(value) {
     if (!value) return "—";
     const [date, time = ""] = String(value).split("T");
@@ -203,6 +232,14 @@ function Header({ breadcrumbs, isMobileOpen, onToggleSidebar }) {
     }
   }
 
+  async function handleLogout() {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    setUserMenuOpen(false);
+    await dispatch(signOut());
+    navigate("/login", { replace: true });
+  }
+
   return (
     <header className="app-header">
       <div className="app-header__start">
@@ -226,7 +263,7 @@ function Header({ breadcrumbs, isMobileOpen, onToggleSidebar }) {
             aria-label={`Thông báo${unreadCount ? `, ${unreadCount} chưa đọc` : ""}`}
             className="icon-button notification-button"
             type="button"
-            onClick={() => setNotificationOpen((isOpen) => !isOpen)}
+            onClick={() => { setUserMenuOpen(false); setNotificationOpen((isOpen) => !isOpen); }}
           >
             <Bell size={20} />
             {unreadCount > 0 && <span className="notification-button__count">{unreadCount > 99 ? "99+" : unreadCount}</span>}
@@ -256,12 +293,26 @@ function Header({ breadcrumbs, isMobileOpen, onToggleSidebar }) {
             </section>
           )}
         </div>
+        <div className="header-user-menu" ref={userMenuRef}>
+          <button aria-expanded={userMenuOpen} aria-haspopup="menu" className="header-user-trigger" type="button" onClick={() => { setNotificationOpen(false); setUserMenuOpen((open) => !open); }}>
+            <span className="header-user-avatar">
+              {user?.avatarUrl && !avatarFailed ? <img alt="" src={user.avatarUrl} onError={() => setAvatarFailed(true)} /> : getInitials(user?.fullName || user?.userName)}
+            </span>
+            <span className="header-user-summary"><strong>{user?.fullName || user?.userName}</strong><small>{primaryRole}</small></span>
+            <ChevronDown className={userMenuOpen ? "header-user-chevron--open" : ""} size={15} />
+          </button>
+          {userMenuOpen && <section className="header-user-dropdown" role="menu">
+            <div className="header-user-dropdown__profile"><strong>{user?.fullName || user?.userName}</strong><span>{user?.email || "—"}</span><small>{primaryRole}</small></div>
+            <button disabled={loggingOut} role="menuitem" type="button" onClick={handleLogout}><LogOut size={16} /> {loggingOut ? "Đang đăng xuất..." : "Đăng xuất"}</button>
+          </section>}
+        </div>
       </div>
     </header>
   );
 }
 
 function MainLayout() {
+  const roles = useSelector((state) => state.auth.user?.roles ?? []);
   const { pathname } = useLocation();
   const breadcrumbs = getBreadcrumbs(pathname);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -290,6 +341,7 @@ function MainLayout() {
         isCollapsed={isCollapsed}
         isMobileOpen={isMobileOpen}
         onNavigate={closeMobileSidebar}
+        roles={roles}
       />
       {isMobileOpen && (
         <button

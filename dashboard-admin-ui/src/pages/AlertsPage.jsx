@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSelector } from "react-redux";
 import { BellRing, CalendarClock, ChevronLeft, ChevronRight, Clock3, Eye, Filter, RotateCcw, Search, Send, TriangleAlert, X } from "lucide-react";
 
 import { getCaseAlerts } from "../services/alertService";
@@ -128,6 +129,7 @@ function AlertModal({ children, onClose, title }) {
 }
 
 function CaseAlertDetails({ caseItem, now, onClose, onRemind }) {
+  const isAdmin = useSelector((state) => state.auth.user?.roles?.includes("ADMIN") ?? false);
   const alertLevel = getAlertLevel(caseItem.dueDate, now);
   const details = [
     ["Mã hồ sơ", caseItem.caseCode],
@@ -150,8 +152,7 @@ function CaseAlertDetails({ caseItem, now, onClose, onRemind }) {
         </dl>
       </div>
       <footer className="case-modal__footer">
-        {/* TODO(Auth): Chỉ hiển thị action này cho ADMIN khi frontend có authenticated identity. */}
-        <button className="cases-button cases-button--primary" disabled={!caseItem.currentAssigneeId} type="button" onClick={() => onRemind(caseItem)}><Send size={14} /> Gửi nhắc nhở</button>
+        {isAdmin && <button className="cases-button cases-button--primary" disabled={!caseItem.currentAssigneeId} type="button" onClick={() => onRemind(caseItem)}><Send size={14} /> Gửi nhắc nhở</button>}
         <button className="cases-button cases-button--secondary" type="button" onClick={onClose}>Đóng</button>
       </footer>
     </AlertModal>

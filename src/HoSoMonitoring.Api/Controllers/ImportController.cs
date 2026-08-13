@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HoSoMonitoring.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/import")]
 public class ImportController : ControllerBase
@@ -17,6 +18,7 @@ public class ImportController : ControllerBase
         _importService = importService;
     }
 
+    [Authorize(Roles = Roles.Admin)]
     [HttpPost("cases")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> ImportCases(

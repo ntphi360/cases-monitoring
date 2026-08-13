@@ -1,0 +1,16 @@
+.users-filter-card { grid-template-columns: minmax(260px, 1.6fr) repeat(2, minmax(150px, .7fr)); }
+.users-table { min-width: 1000px; }
+.users-table__name { color: #24466f; font-weight: 650; }
+.user-role, .user-status { display: inline-flex; min-height: 22px; align-items: center; padding: 0 7px; border-radius: 6px; font-size: 9px; font-weight: 700; }
+.user-role--admin { color: #654fba; background: #f0edff; }
+.user-role--staff { color: #1768dc; background: #eaf3ff; }
+.user-status--active { color: #178b54; background: #e8f7ef; }
+.user-status--locked { color: #df303b; background: #ffedef; }
+.users-action--lock { color: #df303b; }
+.users-action--unlock { color: #178b54; }
+.users-page__error { margin: 12px 0 0; padding: 8px 10px; color: #c92f39; background: #fff2f3; border: 1px solid #f3cdd1; border-radius: 7px; font-size: 10.5px; }
+.user-modal { width: min(680px, 100%); }
+.user-form__active { display: flex !important; align-items: center; flex-direction: row !important; gap: 8px !important; grid-column: 1 / -1; }
+.user-form__active input { width: 14px; min-height: 14px; accent-color: #1269e8; }
+.cases-table__empty > svg { display: block; margin: 0 auto 7px; }
+@media (max-width: 760px) { .users-filter-card { grid-template-columns: 1fr; } }

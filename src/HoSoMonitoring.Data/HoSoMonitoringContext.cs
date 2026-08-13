@@ -1,9 +1,11 @@
 ﻿using HoSoMonitoring.Core.Content;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace HoSoMonitoring.Data
 {
-    public class HoSoMonitoringContext : DbContext
+    public class HoSoMonitoringContext : IdentityDbContext<User, AppRole, int>
     {
         public HoSoMonitoringContext(
             DbContextOptions<HoSoMonitoringContext> options)
@@ -15,7 +17,7 @@ namespace HoSoMonitoring.Data
         public DbSet<Department> Departments { get; set; }
 
         // Danh sách cán bộ/chuyên viên
-        public DbSet<User> Users { get; set; }
+        public override DbSet<User> Users { get; set; }
 
         // Danh sách lĩnh vực thủ tục hành chính
         public DbSet<ProcedureField> ProcedureFields { get; set; }
@@ -41,6 +43,8 @@ namespace HoSoMonitoring.Data
         // Audit kết quả gửi nhắc nhở theo từng kênh.
         public DbSet<ReminderDelivery> ReminderDeliveries { get; set; }
 
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
+
         // Phân quyền cán bộ theo lĩnh vực thủ tục hành chính
         public DbSet<UserProcedureField> UserProcedureFields { get; set; }
 
@@ -48,6 +52,21 @@ namespace HoSoMonitoring.Data
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+
+            builder.Entity<User>().ToTable("Users");
+            builder.Entity<AppRole>().ToTable("Roles");
+            builder.Entity<IdentityUserRole<int>>().ToTable("UserRoles");
+            builder.Entity<IdentityUserClaim<int>>().ToTable("UserClaims");
+            builder.Entity<IdentityUserLogin<int>>().ToTable("UserLogins");
+            builder.Entity<IdentityRoleClaim<int>>().ToTable("RoleClaims");
+            builder.Entity<IdentityUserToken<int>>().ToTable("UserTokens");
+
+            builder.Entity<User>().Property(x => x.UserName)
+                .HasColumnName("Username").HasColumnType("varchar(100)").HasMaxLength(100);
+            builder.Entity<User>().Property(x => x.Email)
+                .HasColumnType("varchar(256)").HasMaxLength(256);
+            builder.Entity<User>().Property(x => x.PhoneNumber)
+                .HasColumnType("varchar(20)").HasMaxLength(20);
 
             // Một đơn vị có nhiều cán bộ/chuyên viên.
             builder.Entity<User>()
@@ -178,6 +197,15 @@ namespace HoSoMonitoring.Data
 
             builder.Entity<ReminderDelivery>()
                 .HasIndex(x => new { x.CaseId, x.SentAt });
+
+            builder.Entity<RefreshToken>()
+                .HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            builder.Entity<RefreshToken>()
+                .HasIndex(x => x.TokenHash)
+                .IsUnique();
         }
     }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Download, Eye, Filter, RotateCcw, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 import {
   getCases,
@@ -63,6 +64,7 @@ function DeadlineBadge({ status }) {
 
 function CasesPage() {
   const navigate = useNavigate();
+  const isAdmin = useSelector((state) => state.auth.user?.roles?.includes("ADMIN") ?? false);
   const [caseList, setCaseList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -164,10 +166,10 @@ function CasesPage() {
     <section className="cases-page">
       <div className="cases-page__heading">
         <div><h1>Giám sát hồ sơ</h1><p>Theo dõi, tra cứu trạng thái nghiệp vụ và thời hạn hồ sơ.</p></div>
-        <div className="cases-page__heading-actions">
+        {isAdmin && <div className="cases-page__heading-actions">
           <button className="cases-button cases-button--secondary" disabled={Boolean(exporting)} type="button" onClick={() => handleExport("xlsx")}><Download size={15} /> {exporting === "xlsx" ? "Đang xuất..." : "Excel"}</button>
           <button className="cases-button cases-button--secondary" disabled={Boolean(exporting)} type="button" onClick={() => handleExport("csv")}><Download size={15} /> CSV</button>
-        </div>
+        </div>}
       </div>
       {exportError && <p className="cases-export-error" role="alert">Lỗi: {exportError}</p>}
 

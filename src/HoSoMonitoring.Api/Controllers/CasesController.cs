@@ -12,7 +12,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HoSoMonitoring.Api.Controllers
 {
-    [ApiController]
+[Authorize]
+[ApiController]
     [Route("api/[controller]")]
     public class CasesController : ControllerBase
     {
@@ -110,6 +111,7 @@ namespace HoSoMonitoring.Api.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = Roles.Admin)]
         [HttpGet("export")]
         public async Task<IActionResult> ExportCases(
             [FromQuery] string? keyword,

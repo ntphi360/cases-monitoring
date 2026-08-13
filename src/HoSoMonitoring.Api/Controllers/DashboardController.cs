@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace HoSoMonitoring.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class DashboardController : ControllerBase

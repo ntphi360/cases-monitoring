@@ -9,6 +9,12 @@ using HoSoMonitoring.Core.Models.Content;
 using HoSoMonitoring.Core.Services;
 using HoSoMonitoring.Data.Services;
 using HoSoMonitoring.Core.Configurations;
+using HoSoMonitoring.Core.Content;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
+using System.Text;
 
 
 
@@ -29,6 +35,7 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IImportService, ImportService>();
 builder.Services.AddScoped<IReminderService, ReminderService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddHttpClient<IZaloNotificationService, ZaloNotificationService>();
 var administrativeUnit = configuration
     .GetSection(AdministrativeUnitOptions.SectionName)
@@ -50,6 +57,61 @@ var zalo = configuration
     .Get<ZaloOptions>()
     ?? new ZaloOptions();
 builder.Services.AddSingleton(zalo);
+var jwt = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
+if (string.IsNullOrWhiteSpace(jwt.Secret) || jwt.Secret.Length < 32)
+{
+    throw new InvalidOperationException("JWT secret phải được cấu hình bằng User Secrets hoặc environment variable và dài tối thiểu 32 ký tự.");
+}
+builder.Services.AddSingleton(jwt);
+builder.Services.AddIdentity<User, AppRole>(options =>
+    {
+        options.User.RequireUniqueEmail = true;
+        options.Password.RequiredLength = 8;
+        options.Password.RequireNonAlphanumeric = false;
+        options.Lockout.MaxFailedAccessAttempts = 5;
+    })
+    .AddEntityFrameworkStores<HoSoMonitoringContext>()
+    .AddDefaultTokenProviders();
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwt.Issuer,
+            ValidAudience = jwt.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Secret)),
+            ClockSkew = TimeSpan.FromSeconds(30)
+        };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var userManager = context.HttpContext.RequestServices.GetRequiredService<UserManager<User>>();
+                var userId = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var user = userId == null ? null : await userManager.FindByIdAsync(userId);
+                if (user == null || !user.IsActive)
+                {
+                    context.Fail("Tài khoản không hoạt động.");
+                    return;
+                }
+                var currentRoles = await userManager.GetRolesAsync(user);
+                var tokenRoles = context.Principal!.FindAll(System.Security.Claims.ClaimTypes.Role).Select(x => x.Value);
+                if (!new HashSet<string>(currentRoles, StringComparer.OrdinalIgnoreCase).SetEquals(tokenRoles))
+                {
+                    context.Fail("Quyền tài khoản đã thay đổi.");
+                }
+            }
+        };
+    });
+builder.Services.AddAuthorization();
 builder.Services.AddSingleton<ICaseCodeParser, CaseCodeParser>();
 builder.Services.AddScoped<ICaseCodeGenerator, CaseCodeGenerator>();
 
@@ -63,7 +125,8 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins("http://localhost:5173")
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
@@ -104,6 +167,20 @@ foreach (var service in services)
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "Nhập JWT access token."
+    });
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
+    });
+});
 
 var app = builder.Build();
 
@@ -114,13 +191,16 @@ app.MigrateDatabase();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
-
 app.UseCors("Frontend");
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

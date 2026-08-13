@@ -131,7 +131,7 @@ public class ReminderService : IReminderService
         ]);
 
         return _emailService.SendAsync(
-            assignee.Email,
+            assignee.Email ?? string.Empty,
             $"[HoSoMonitoring] Nhắc nhở hồ sơ {caseEntity.ExternalCaseCode}",
             body,
             cancellationToken);
