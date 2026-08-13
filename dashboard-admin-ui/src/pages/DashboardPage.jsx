@@ -7,6 +7,7 @@ import {
 import { Link } from "react-router-dom";
 
 import { getDashboardSummary } from "../services/dashboardService";
+import { getLastImportSync } from "../services/importService";
 import "./DashboardPage.css";
 
 const statusPresentation = {
@@ -32,6 +33,14 @@ function formatCaseDateTime(value) {
   return `${day}/${month}/${year} ${time.slice(0, 5)}`;
 }
 
+function formatLastUpdated(value) {
+  if (!value) return "Chưa có lần import thành công";
+  return new Intl.DateTimeFormat("vi-VN", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
 function DonutCenterLabel({ total, viewBox }) {
   const { cx, cy } = viewBox ?? {};
   if (typeof cx !== "number" || typeof cy !== "number") return null;
@@ -48,6 +57,9 @@ function DashboardPage() {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [lastSync, setLastSync] = useState(null);
+  const [syncError, setSyncError] = useState("");
+  const [syncLoading, setSyncLoading] = useState(true);
 
   useEffect(() => {
     let isCurrent = true;
@@ -55,6 +67,15 @@ function DashboardPage() {
       .then((response) => { if (isCurrent) setDashboard(response); })
       .catch((error) => { if (isCurrent) setLoadError(error.message || "Không thể tải dữ liệu Dashboard."); })
       .finally(() => { if (isCurrent) setLoading(false); });
+    return () => { isCurrent = false; };
+  }, []);
+
+  useEffect(() => {
+    let isCurrent = true;
+    getLastImportSync()
+      .then((sync) => { if (isCurrent) setLastSync(sync); })
+      .catch((error) => { if (isCurrent) setSyncError(error.message || "Không thể tải thời điểm cập nhật dữ liệu."); })
+      .finally(() => { if (isCurrent) setSyncLoading(false); });
     return () => { isCurrent = false; };
   }, []);
 
@@ -78,6 +99,13 @@ function DashboardPage() {
   return (
     <section className="dashboard-page">
       <div className="dashboard-page__heading"><h1>Dashboard</h1><p>Tổng quan tình hình quản lý hồ sơ trong hệ thống.</p></div>
+      <p className="data-sync-status">Cập nhật dữ liệu lần cuối: {syncLoading ? "Đang tải..." : formatLastUpdated(lastSync?.lastUpdatedAt)}</p>
+      {syncError && <div className="dashboard-feedback" role="alert">{syncError}</div>}
+      {lastSync?.isStale && (
+        <div className="data-stale-warning" role="alert">
+          Dữ liệu chưa được cập nhật trong hơn {lastSync.staleDataHours} giờ. Thông tin cảnh báo có thể chưa phản ánh trạng thái mới nhất.
+        </div>
+      )}
       {loadError && <div className="dashboard-feedback" role="alert">Lỗi: {loadError}</div>}
 
       <div className="kpi-grid" aria-label="Thống kê tổng quan hồ sơ">
@@ -87,8 +115,8 @@ function DashboardPage() {
               <span className="kpi-card__title">{title}</span>
               <span className="kpi-card__icon" aria-hidden="true"><Icon size={21} strokeWidth={2} /></span>
             </div>
-            <strong className="kpi-card__value">{loading ? "—" : value.toLocaleString("vi-VN")}</strong>
-            <div className="kpi-card__change"><span>{loading ? "Đang tải dữ liệu..." : "Dữ liệu hiện tại"}</span></div>
+            <strong className="kpi-card__value">{loading || loadError ? "—" : value.toLocaleString("vi-VN")}</strong>
+            <div className="kpi-card__change"><span>{loading ? "Đang tải dữ liệu..." : loadError ? "Không thể tải dữ liệu" : "Dữ liệu hiện tại"}</span></div>
           </article>
         ))}
       </div>
@@ -107,7 +135,7 @@ function DashboardPage() {
                     <Tooltip contentStyle={chartTooltipStyle} formatter={(value) => [`${value} hồ sơ`]} />
                   </PieChart>
                 </ResponsiveContainer>
-              ) : <p className="dashboard-empty-chart">{loading ? "Đang tải dữ liệu..." : "Chưa có dữ liệu"}</p>}
+              ) : <p className="dashboard-empty-chart">{loading ? "Đang tải dữ liệu..." : loadError ? "Không thể tải dữ liệu" : "Không có dữ liệu thống kê"}</p>}
             </div>
             <ul className="status-chart__legend" aria-label="Chú thích trạng thái hồ sơ">
               {statusData.map((item) => (
@@ -138,7 +166,7 @@ function DashboardPage() {
                   <Line activeDot={{ r: 5 }} dataKey="completed" dot={{ r: 3 }} name="Hồ sơ hoàn thành" stroke="#22a667" strokeWidth={2.2} type="monotone" isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
-            ) : <p className="dashboard-empty-chart">{loading ? "Đang tải dữ liệu..." : "Chưa có dữ liệu"}</p>}
+            ) : <p className="dashboard-empty-chart">{loading ? "Đang tải dữ liệu..." : loadError ? "Không thể tải dữ liệu" : "Không có dữ liệu thống kê"}</p>}
           </div>
         </article>
       </div>

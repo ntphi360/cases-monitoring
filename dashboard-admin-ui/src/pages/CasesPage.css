@@ -106,7 +106,14 @@
 .cases-table { width: 100%; min-width: 1660px; border-collapse: collapse; color: #52627a; font-size: 10.5px; text-align: left; }
 .cases-table th { padding: 8px 12px; color: #7a889c; background: #fafbfd; border-bottom: 1px solid #e9eef5; font-size: 9px; font-weight: 700; letter-spacing: .025em; text-transform: uppercase; white-space: nowrap; }
 .cases-table td { max-width: 210px; padding: 9px 12px; border-bottom: 1px solid #edf1f6; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cases-table th:last-child,
+.cases-table td:last-child { position: sticky; right: 0; background: #fff; box-shadow: -6px 0 9px rgba(32, 56, 85, .04); }
+.cases-table th:last-child { z-index: 1; background: #fafbfd; }
+.cases-table tbody tr:hover td:last-child { background: #f8fbff; }
 .cases-table tbody tr:hover { background: #f8fbff; }
+.cases-table__clickable-row { cursor: pointer; }
+.cases-table__clickable-row:focus-visible { outline: 2px solid #6ba4f2; outline-offset: -2px; }
+.cases-table__clickable-row:hover .cases-table__code { text-decoration: underline; text-underline-offset: 2px; }
 .cases-table__code { color: #24466f; font-weight: 650; }
 .cases-table__name { min-width: 220px; }
 .cases-table__empty { height: 90px; color: #8a97aa; text-align: center; }

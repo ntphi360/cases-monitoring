@@ -12,6 +12,8 @@ import {
   getCaseActionTypeLabel,
   getCaseStatusBadgeKey,
   getCaseStatusLabel,
+  getDeadlineStatusBadgeKey,
+  getDeadlineStatusLabel,
 } from "../utils/caseLabels";
 import "./CasesPage.css";
 import "./CaseDetailPage.css";
@@ -31,6 +33,14 @@ function StatusBadge({ status }) {
   return (
     <span className={`cases-status-badge cases-status-badge--${getCaseStatusBadgeKey(status)}`}>
       {getCaseStatusLabel(status)}
+    </span>
+  );
+}
+
+function DeadlineBadge({ status }) {
+  return (
+    <span className={`cases-status-badge cases-status-badge--${getDeadlineStatusBadgeKey(status)}`}>
+      {getDeadlineStatusLabel(status)}
     </span>
   );
 }
@@ -164,8 +174,12 @@ function CaseDetailPage() {
             </div>
           ))}
           <div className="case-details__item">
-            <dt>Trạng thái</dt>
+            <dt>Trạng thái nghiệp vụ</dt>
             <dd><StatusBadge status={caseDetail.status} /></dd>
+          </div>
+          <div className="case-details__item">
+            <dt>Tình trạng thời hạn</dt>
+            <dd><DeadlineBadge status={caseDetail.deadlineStatus} /></dd>
           </div>
         </dl>
       </article>

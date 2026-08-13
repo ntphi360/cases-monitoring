@@ -13,7 +13,12 @@ async function readResponse(response) {
 }
 
 export async function apiFetch(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, options)
+  let response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, options)
+  } catch {
+    throw new Error('Không thể kết nối máy chủ. Vui lòng thử lại.')
+  }
   const data = await readResponse(response)
 
   if (!response.ok) {

@@ -4,6 +4,7 @@ using HoSoMonitoring.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HoSoMonitoring.Data.Migrations
 {
     [DbContext(typeof(HoSoMonitoringContext))]
-    partial class HoSoMonitoringContextModelSnapshot : ModelSnapshot
+    [Migration("20260813092158_AddImportHistory")]
+    partial class AddImportHistory
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -386,51 +389,6 @@ namespace HoSoMonitoring.Data.Migrations
                     b.ToTable("ProcedureFields");
                 });
 
-            modelBuilder.Entity("HoSoMonitoring.Core.Content.ReminderDelivery", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CaseId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Channel")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("Message")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("Recipient")
-                        .HasMaxLength(250)
-                        .HasColumnType("nvarchar(250)");
-
-                    b.Property<DateTime>("SentAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("CaseId", "SentAt");
-
-                    b.ToTable("ReminderDeliveries");
-                });
-
             modelBuilder.Entity("HoSoMonitoring.Core.Content.User", b =>
                 {
                     b.Property<int>("Id")
@@ -622,25 +580,6 @@ namespace HoSoMonitoring.Data.Migrations
                     b.Navigation("Department");
 
                     b.Navigation("ProcedureField");
-                });
-
-            modelBuilder.Entity("HoSoMonitoring.Core.Content.ReminderDelivery", b =>
-                {
-                    b.HasOne("HoSoMonitoring.Core.Content.Case", "Case")
-                        .WithMany()
-                        .HasForeignKey("CaseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("HoSoMonitoring.Core.Content.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Case");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("HoSoMonitoring.Core.Content.User", b =>

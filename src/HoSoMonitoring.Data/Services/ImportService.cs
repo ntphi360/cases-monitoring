@@ -1,5 +1,6 @@
 using ClosedXML.Excel;
 using HoSoMonitoring.Core.Content;
+using HoSoMonitoring.Core.Configurations;
 using HoSoMonitoring.Core.Enums;
 using HoSoMonitoring.Core.Models.Import;
 using HoSoMonitoring.Core.Services;
@@ -25,6 +26,9 @@ public class ImportService : IImportService
     private const string ProcessingDaysHeader = "Số ngày giải quyết";
     private const string AssigneeNameHeader = "Cán bộ xử lý hiện tại";
     private const string StatusHeader = "Trạng thái";
+    private const string DeadlineHeader = "Hạn xử lý";
+    private const string CurrentStepNameHeader = "Bước xử lý hiện tại";
+    private const string ExternalUpdatedAtHeader = "Cập nhật nguồn";
 
     private static readonly string[] RequiredHeaders =
     [
@@ -41,16 +45,96 @@ public class ImportService : IImportService
     ];
 
     private readonly HoSoMonitoringContext _context;
+    private readonly MonitoringOptions _monitoring;
 
-    public ImportService(HoSoMonitoringContext context)
+    public ImportService(
+        HoSoMonitoringContext context,
+        MonitoringOptions monitoring)
     {
         _context = context;
+        _monitoring = monitoring;
     }
 
     public async Task<ImportCasesResultDto> ImportCasesAsync(
         Stream stream,
         string fileExtension,
+        string fileName,
         CancellationToken cancellationToken = default)
+    {
+        var importHistory = new ImportHistory
+        {
+            FileName = fileName.Length > 260 ? fileName[..260] : fileName,
+            StartedAt = DateTime.Now
+        };
+        _context.ImportHistories.Add(importHistory);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            var result = await ImportRowsAsync(
+                stream,
+                fileExtension,
+                cancellationToken);
+
+            importHistory.CompletedAt = DateTime.Now;
+            importHistory.TotalRows = result.TotalRows;
+            importHistory.InsertedCount = result.InsertedCount;
+            importHistory.UpdatedCount = result.UpdatedCount;
+            importHistory.UnchangedCount = result.UnchangedCount;
+            importHistory.FailedCount = result.FailedCount;
+            importHistory.IsSuccess = true;
+            await _context.SaveChangesAsync(cancellationToken);
+
+            return result;
+        }
+        catch
+        {
+            foreach (var entry in _context.ChangeTracker.Entries()
+                .Where(entry => !ReferenceEquals(entry.Entity, importHistory)))
+            {
+                if (entry.State == EntityState.Added)
+                {
+                    entry.State = EntityState.Detached;
+                }
+                else if (entry.State == EntityState.Modified)
+                {
+                    entry.CurrentValues.SetValues(entry.OriginalValues);
+                    entry.State = EntityState.Unchanged;
+                }
+            }
+
+            importHistory.CompletedAt = DateTime.Now;
+            importHistory.IsSuccess = false;
+            await _context.SaveChangesAsync(CancellationToken.None);
+            throw;
+        }
+    }
+
+    public async Task<LastImportSyncDto> GetLastSyncAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var lastImport = await _context.ImportHistories
+            .AsNoTracking()
+            .Where(item => item.IsSuccess && item.CompletedAt.HasValue)
+            .OrderByDescending(item => item.CompletedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+        var staleHours = _monitoring.StaleDataHours;
+        var lastUpdatedAt = lastImport?.CompletedAt;
+
+        return new LastImportSyncDto
+        {
+            LastUpdatedAt = lastUpdatedAt,
+            FileName = lastImport?.FileName,
+            IsStale = !lastUpdatedAt.HasValue
+                || DateTime.Now - lastUpdatedAt.Value > TimeSpan.FromHours(staleHours),
+            StaleDataHours = staleHours
+        };
+    }
+
+    private async Task<ImportCasesResultDto> ImportRowsAsync(
+        Stream stream,
+        string fileExtension,
+        CancellationToken cancellationToken)
     {
         var rows = fileExtension.ToLowerInvariant() switch
         {
@@ -87,16 +171,15 @@ public class ImportService : IImportService
             .GroupBy(x => NormalizeText(x.FullName))
             .ToDictionary(x => x.Key, x => x.First().Id, StringComparer.Ordinal);
 
-        var existingCodes = new HashSet<string>(
-            (await _context.Cases
-                .AsNoTracking()
-                .Select(x => x.ExternalCaseCode)
+        var existingCases = (await _context.Cases
                 .ToListAsync(cancellationToken))
-            .Select(NormalizeText),
-            StringComparer.Ordinal);
+            .GroupBy(item => NormalizeText(item.ExternalCaseCode))
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
 
-        var casesToAdd = new List<Case>(rows.Count);
         var errors = new List<ImportCaseErrorDto>();
+        var insertedCount = 0;
+        var updatedCount = 0;
+        var unchangedCount = 0;
 
         foreach (var row in rows)
         {
@@ -115,11 +198,7 @@ public class ImportService : IImportService
             }
 
             var normalizedCode = NormalizeText(externalCaseCode);
-            if (existingCodes.Contains(normalizedCode))
-            {
-                AddError(errors, row.Number, externalCaseCode, "Mã hồ sơ đã tồn tại");
-                continue;
-            }
+            existingCases.TryGetValue(normalizedCode, out var existingCase);
 
             var applicantName = row.GetText(ApplicantNameHeader).Trim();
             if (string.IsNullOrWhiteSpace(applicantName))
@@ -176,82 +255,166 @@ public class ImportService : IImportService
                 continue;
             }
 
-            if (!TryParseOptionalDate(
-                    row.GetCell(AppointmentDateHeader),
-                    out var appointmentDate))
+            var appointmentDate = existingCase?.AppointmentDate;
+            if (row.HasColumn(AppointmentDateHeader)
+                && !TryParseOptionalDate(
+                    row.GetCell(AppointmentDateHeader), out appointmentDate))
             {
                 AddError(errors, row.Number, externalCaseCode, "Ngày hẹn trả không hợp lệ");
                 continue;
             }
 
-            if (!TryParseOptionalDate(
-                    row.GetCell(CompletedAtHeader),
-                    out var completedAt))
+            var completedAt = existingCase?.CompletedAt;
+            if (row.HasColumn(CompletedAtHeader)
+                && !TryParseOptionalDate(
+                    row.GetCell(CompletedAtHeader), out completedAt))
             {
                 AddError(errors, row.Number, externalCaseCode, "Ngày hoàn tất không hợp lệ");
                 continue;
             }
 
-            if (!TryParseOptionalNonNegativeInteger(
+            DateTime? importedDeadline = null;
+            if (row.HasColumn(DeadlineHeader)
+                && !TryParseOptionalDate(row.GetCell(DeadlineHeader), out importedDeadline))
+            {
+                AddError(errors, row.Number, externalCaseCode, "Hạn xử lý không hợp lệ");
+                continue;
+            }
+
+            DateTime? externalUpdatedAt = null;
+            if (row.HasColumn(ExternalUpdatedAtHeader)
+                && !TryParseOptionalDate(
+                    row.GetCell(ExternalUpdatedAtHeader), out externalUpdatedAt))
+            {
+                AddError(errors, row.Number, externalCaseCode, "Thời điểm cập nhật nguồn không hợp lệ");
+                continue;
+            }
+
+            var processingDays = existingCase?.ProcessingDays;
+            if (row.HasColumn(ProcessingDaysHeader)
+                && !TryParseOptionalNonNegativeInteger(
                     row.GetText(ProcessingDaysHeader),
-                    out var processingDays))
+                    out processingDays))
             {
                 AddError(errors, row.Number, externalCaseCode, "Số ngày giải quyết không hợp lệ");
                 continue;
             }
 
-            int? currentAssigneeId = null;
+            int? currentAssigneeId = existingCase?.CurrentAssigneeId;
             var assigneeName = row.GetText(AssigneeNameHeader);
-            if (!string.IsNullOrWhiteSpace(assigneeName)
-                && users.TryGetValue(NormalizeText(assigneeName), out var userId))
+            if (row.HasColumn(AssigneeNameHeader))
             {
-                currentAssigneeId = userId;
+                currentAssigneeId = null;
+                if (!string.IsNullOrWhiteSpace(assigneeName)
+                    && users.TryGetValue(NormalizeText(assigneeName), out var userId))
+                {
+                    currentAssigneeId = userId;
+                }
             }
 
-            if (!TryParseCaseStatus(
-                    row.GetText(StatusHeader),
-                    completedAt,
-                    out var caseStatus))
+            var statusText = row.GetText(StatusHeader);
+            var currentStepName = row.GetText(CurrentStepNameHeader).Trim();
+            if (currentStepName.Length > 250)
+            {
+                AddError(errors, row.Number, externalCaseCode, "Bước xử lý hiện tại không được vượt quá 250 ký tự");
+                continue;
+            }
+
+            var caseStatus = existingCase?.Status ?? CaseStatus.Received;
+            if (row.HasColumn(StatusHeader)
+                && !string.IsNullOrWhiteSpace(statusText)
+                && !TryParseCaseStatus(statusText, out caseStatus))
             {
                 AddError(errors, row.Number, externalCaseCode, "Trạng thái không hợp lệ");
                 continue;
             }
 
-            casesToAdd.Add(new Case
+            if (existingCase == null)
             {
-                ExternalCaseCode = externalCaseCode,
-                ApplicantName = applicantName,
-                OrganizationName = string.IsNullOrWhiteSpace(organizationName)
-                    ? null
-                    : organizationName,
-                ProcedureId = procedure.Id,
-                DepartmentId = procedure.DepartmentId,
-                ReceivedAt = receivedAt,
-                AppointmentDate = appointmentDate,
-                Deadline = receivedAt.AddHours(procedure.DefaultProcessingHours),
-                CompletedAt = completedAt,
-                ProcessingDays = processingDays,
-                Status = caseStatus,
-                Priority = CasePriority.Normal,
-                CurrentAssigneeId = currentAssigneeId,
-                CurrentStepName = "Tiếp nhận",
-                SourceType = DataSourceType.ManualImport,
-                CreatedAt = DateTime.Now
-            });
+                var newCase = new Case
+                {
+                    ExternalCaseCode = externalCaseCode,
+                    ApplicantName = applicantName,
+                    OrganizationName = string.IsNullOrWhiteSpace(organizationName) ? null : organizationName,
+                    ProcedureId = procedure.Id,
+                    DepartmentId = procedure.DepartmentId,
+                    ReceivedAt = receivedAt,
+                    AppointmentDate = appointmentDate,
+                    Deadline = importedDeadline ?? receivedAt.AddHours(procedure.DefaultProcessingHours),
+                    CompletedAt = completedAt,
+                    ProcessingDays = processingDays,
+                    Status = caseStatus,
+                    Priority = CasePriority.Normal,
+                    CurrentAssigneeId = currentAssigneeId,
+                    CurrentStepName = row.HasColumn(CurrentStepNameHeader)
+                        ? NullIfWhiteSpace(currentStepName)
+                        : "Tiếp nhận",
+                    SourceType = DataSourceType.ManualImport,
+                    ExternalUpdatedAt = externalUpdatedAt,
+                    CreatedAt = DateTime.Now
+                };
+                _context.Cases.Add(newCase);
+                existingCases[normalizedCode] = newCase;
+                insertedCount++;
+                continue;
+            }
 
-            existingCodes.Add(normalizedCode);
+            var oldStatus = existingCase.Status;
+            var changed = false;
+            changed |= SetIfChanged(existingCase.ApplicantName, applicantName, value => existingCase.ApplicantName = value);
+            changed |= SetIfChanged(existingCase.ProcedureId, procedure.Id, value => existingCase.ProcedureId = value);
+            changed |= SetIfChanged(existingCase.DepartmentId, procedure.DepartmentId, value => existingCase.DepartmentId = value);
+            changed |= SetIfChanged(existingCase.ReceivedAt, receivedAt, value => existingCase.ReceivedAt = value);
+            changed |= SetIfChanged(existingCase.Status, caseStatus, value => existingCase.Status = value);
+            changed |= SetIfChanged(existingCase.SourceType, DataSourceType.ManualImport, value => existingCase.SourceType = value);
+
+            if (row.HasColumn(OrganizationNameHeader))
+                changed |= SetIfChanged(existingCase.OrganizationName, NullIfWhiteSpace(organizationName), value => existingCase.OrganizationName = value);
+            if (row.HasColumn(AppointmentDateHeader))
+                changed |= SetIfChanged(existingCase.AppointmentDate, appointmentDate, value => existingCase.AppointmentDate = value);
+            if (row.HasColumn(DeadlineHeader) && importedDeadline.HasValue)
+                changed |= SetIfChanged(existingCase.Deadline, importedDeadline.Value, value => existingCase.Deadline = value);
+            if (row.HasColumn(CompletedAtHeader))
+                changed |= SetIfChanged(existingCase.CompletedAt, completedAt, value => existingCase.CompletedAt = value);
+            if (row.HasColumn(ProcessingDaysHeader))
+                changed |= SetIfChanged(existingCase.ProcessingDays, processingDays, value => existingCase.ProcessingDays = value);
+            if (row.HasColumn(AssigneeNameHeader))
+                changed |= SetIfChanged(existingCase.CurrentAssigneeId, currentAssigneeId, value => existingCase.CurrentAssigneeId = value);
+            if (row.HasColumn(CurrentStepNameHeader))
+                changed |= SetIfChanged(existingCase.CurrentStepName, NullIfWhiteSpace(currentStepName), value => existingCase.CurrentStepName = value);
+            if (row.HasColumn(ExternalUpdatedAtHeader))
+                changed |= SetIfChanged(existingCase.ExternalUpdatedAt, externalUpdatedAt, value => existingCase.ExternalUpdatedAt = value);
+
+            if (!changed)
+            {
+                unchangedCount++;
+                continue;
+            }
+
+            existingCase.UpdatedAt = DateTime.Now;
+            updatedCount++;
+            if (oldStatus != existingCase.Status)
+            {
+                _context.CaseHistories.Add(new CaseHistory
+                {
+                    Case = existingCase,
+                    ActionType = CaseActionType.StatusChanged,
+                    OldStatus = oldStatus,
+                    NewStatus = existingCase.Status,
+                    Description = "Cập nhật trạng thái từ dữ liệu nguồn",
+                    CreatedAt = DateTime.Now
+                });
+            }
         }
 
-        if (casesToAdd.Count > 0)
-        {
-            _context.Cases.AddRange(casesToAdd);
-            await _context.SaveChangesAsync(cancellationToken);
-        }
+        await _context.SaveChangesAsync(cancellationToken);
 
         return new ImportCasesResultDto
         {
             TotalRows = rows.Count,
-            SuccessCount = casesToAdd.Count,
+            InsertedCount = insertedCount,
+            UpdatedCount = updatedCount,
+            UnchangedCount = unchangedCount,
             FailedCount = errors.Count,
             Errors = errors
         };
@@ -496,14 +659,11 @@ public class ImportService : IImportService
 
     private static bool TryParseCaseStatus(
         string text,
-        DateTime? completedAt,
         out CaseStatus status)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
-            status = completedAt.HasValue
-                ? CaseStatus.Completed
-                : CaseStatus.Received;
+            status = CaseStatus.Received;
             return true;
         }
 
@@ -653,6 +813,25 @@ public class ImportService : IImportService
         });
     }
 
+    private static string? NullIfWhiteSpace(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static bool SetIfChanged<T>(
+        T currentValue,
+        T newValue,
+        Action<T> setter)
+    {
+        if (EqualityComparer<T>.Default.Equals(currentValue, newValue))
+        {
+            return false;
+        }
+
+        setter(newValue);
+        return true;
+    }
+
     private readonly record struct ImportCell(string Text, DateTime? DateValue)
     {
         public static ImportCell Empty => new(string.Empty, null);
@@ -672,5 +851,8 @@ public class ImportService : IImportService
         }
 
         public string GetText(string header) => GetCell(header).Text;
+
+        public bool HasColumn(string header) =>
+            Values.ContainsKey(NormalizeText(header));
     }
 }

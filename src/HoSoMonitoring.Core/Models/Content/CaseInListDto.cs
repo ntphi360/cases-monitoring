@@ -22,6 +22,8 @@ public class CaseInListDto
 
     public string? AssigneeName { get; set; }
 
+    public int? CurrentAssigneeId { get; set; }
+
     public DateTime ReceivedAt { get; set; }
 
     public DateTime? AppointmentDate { get; set; }
@@ -34,6 +36,8 @@ public class CaseInListDto
 
     public CaseStatus Status { get; set; }
 
+    public DeadlineStatus DeadlineStatus { get; set; }
+
     public CasePriority Priority { get; set; }
 
     public string? CurrentStepName { get; set; }
@@ -43,6 +47,9 @@ public class CaseInListDto
         public CaseInListMappingProfile()
         {
             CreateMap<Case, CaseInListDto>()
+                .ForMember(
+                    destination => destination.DeadlineStatus,
+                    options => options.Ignore())
                 .ForMember(
                     destination => destination.ProcedureName,
                     options => options.MapFrom(source => source.Procedure!.Name))

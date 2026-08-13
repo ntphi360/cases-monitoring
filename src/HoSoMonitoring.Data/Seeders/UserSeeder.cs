@@ -28,8 +28,8 @@ public class UserSeeder
             {
                 Username = "admin",
                 FullName = "Quản trị hệ thống",
-                Email = "admin@example.com",
-                PhoneNumber = "0900000000",
+                Email = "prea360@gmail.com.com",
+                PhoneNumber = "0764117236",
                 DepartmentId = root.Id,
                 ExternalUserCode = "ADMIN001",
                 IsActive = true,

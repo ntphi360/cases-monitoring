@@ -33,6 +33,26 @@ const caseActionTypeLabels = {
   7: "Hủy hồ sơ",
 };
 
+const deadlineStatusLabels = {
+  1: "Trong hạn",
+  2: "Sắp đến hạn",
+  3: "Đến hạn hôm nay",
+  4: "Quá hạn",
+  5: "Hoàn thành đúng hạn",
+  6: "Hoàn thành trễ hạn",
+  7: "Không áp dụng",
+};
+
+const deadlineStatusBadgeKeys = {
+  1: "new",
+  2: "upcoming",
+  3: "upcoming",
+  4: "overdue",
+  5: "completed",
+  6: "overdue",
+  7: "cancelled",
+};
+
 export function getCaseStatusLabel(status) {
   return caseStatusLabels[status] ?? "Không xác định";
 }
@@ -47,4 +67,12 @@ export function getAssignmentStatusLabel(status) {
 
 export function getCaseActionTypeLabel(actionType) {
   return caseActionTypeLabels[actionType] ?? "Hoạt động khác";
+}
+
+export function getDeadlineStatusLabel(status) {
+  return deadlineStatusLabels[status] ?? "Không xác định";
+}
+
+export function getDeadlineStatusBadgeKey(status) {
+  return deadlineStatusBadgeKeys[status] ?? "new";
 }

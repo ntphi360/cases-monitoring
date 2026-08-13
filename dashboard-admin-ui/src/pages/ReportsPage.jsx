@@ -61,7 +61,7 @@ const statuses = [
 const pieColors = ["#1768dc", "#199b5d", "#e56f0a", "#7c5ce5", "#df303b", "#3b9ca8"];
 
 function EmptyChart() {
-  return <p className="reports-empty">Không có dữ liệu</p>;
+  return <p className="reports-empty">Không có dữ liệu thống kê</p>;
 }
 
 function ReportTable({ rows }) {

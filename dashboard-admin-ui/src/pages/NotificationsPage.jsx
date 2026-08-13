@@ -33,6 +33,8 @@ function NotificationsPage() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [updatingId, setUpdatingId] = useState(null);
+  const [markingAll, setMarkingAll] = useState(false);
 
   useEffect(() => {
     let isCurrent = true;
@@ -43,6 +45,7 @@ function NotificationsPage() {
         setItems(response.results ?? []);
         setTotalPages(Math.max(response.totalPages ?? 0, 1));
         setUnreadCount(response.unreadCount ?? 0);
+        setError("");
       })
       .catch((loadError) => {
         if (isCurrent) setError(loadError.message || "Không thể tải thông báo.");
@@ -57,6 +60,8 @@ function NotificationsPage() {
   }, [isRead, pageIndex, userId]);
 
   async function openNotification(item) {
+    if (updatingId !== null) return;
+    setUpdatingId(item.id);
     try {
       if (!item.isRead) {
         await markNotificationRead(item.id);
@@ -68,10 +73,14 @@ function NotificationsPage() {
       if (item.caseId) navigate(`/cases/${item.caseId}`);
     } catch (updateError) {
       setError(updateError.message || "Không thể đánh dấu thông báo đã đọc.");
+    } finally {
+      setUpdatingId(null);
     }
   }
 
   async function markAllRead() {
+    if (markingAll) return;
+    setMarkingAll(true);
     try {
       await markAllNotificationsRead(userId);
       setItems((current) => current.map((item) => ({ ...item, isRead: true })));
@@ -79,6 +88,8 @@ function NotificationsPage() {
       notifyUnreadChanged();
     } catch (updateError) {
       setError(updateError.message || "Không thể đánh dấu tất cả đã đọc.");
+    } finally {
+      setMarkingAll(false);
     }
   }
 
@@ -98,15 +109,15 @@ function NotificationsPage() {
   return (
     <section className="notifications-page">
       <div className="notifications-page__heading">
-        <div><h1>Thông báo</h1><p>{unreadCount} thông báo chưa đọc</p></div>
-        <button className="notifications-button" disabled={unreadCount === 0} type="button" onClick={markAllRead}>
-          <CheckCheck size={16} /> Đánh dấu tất cả đã đọc
+        <div><h1>Thông báo</h1><p>{loading ? "Đang tải thông báo..." : `${unreadCount} thông báo chưa đọc`}</p></div>
+        <button className="notifications-button" disabled={loading || markingAll || unreadCount === 0} type="button" onClick={markAllRead}>
+          <CheckCheck size={16} /> {markingAll ? "Đang cập nhật..." : "Đánh dấu tất cả đã đọc"}
         </button>
       </div>
 
       <div className="notifications-filter" role="group" aria-label="Lọc thông báo">
         {[['', 'Tất cả'], ['false', 'Chưa đọc'], ['true', 'Đã đọc']].map(([value, label]) => (
-          <button className={isRead === value ? "is-active" : ""} key={label} type="button" onClick={() => changeReadFilter(value)}>{label}</button>
+          <button className={isRead === value ? "is-active" : ""} disabled={loading} key={label} type="button" onClick={() => changeReadFilter(value)}>{label}</button>
         ))}
       </div>
 
@@ -115,7 +126,7 @@ function NotificationsPage() {
         {!loading && error && <p className="notifications-message notifications-message--error" role="alert">Lỗi: {error}</p>}
         {!loading && !error && items.length === 0 && <p className="notifications-message">Không có thông báo</p>}
         {!loading && !error && items.map((item) => (
-          <button className={`notification-item${item.isRead ? " notification-item--read" : ""}`} key={item.id} type="button" onClick={() => openNotification(item)}>
+          <button className={`notification-item${item.isRead ? " notification-item--read" : ""}`} disabled={updatingId === item.id} key={item.id} type="button" onClick={() => openNotification(item)}>
             <span className="notification-item__icon"><Bell size={17} /></span>
             <span className="notification-item__content">
               <strong>{item.message}</strong>

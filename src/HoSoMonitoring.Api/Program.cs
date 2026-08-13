@@ -27,11 +27,29 @@ builder.Services.AddDbContext<HoSoMonitoringContext>(options =>
 builder.Services.AddScoped(typeof(IRepository<,>), typeof(RepositoryBase<,>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IImportService, ImportService>();
+builder.Services.AddScoped<IReminderService, ReminderService>();
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+builder.Services.AddHttpClient<IZaloNotificationService, ZaloNotificationService>();
 var administrativeUnit = configuration
     .GetSection(AdministrativeUnitOptions.SectionName)
     .Get<AdministrativeUnitOptions>()
     ?? new AdministrativeUnitOptions();
 builder.Services.AddSingleton(administrativeUnit);
+var monitoring = configuration
+    .GetSection(MonitoringOptions.SectionName)
+    .Get<MonitoringOptions>()
+    ?? new MonitoringOptions();
+builder.Services.AddSingleton(monitoring);
+var email = configuration
+    .GetSection(EmailOptions.SectionName)
+    .Get<EmailOptions>()
+    ?? new EmailOptions();
+builder.Services.AddSingleton(email);
+var zalo = configuration
+    .GetSection(ZaloOptions.SectionName)
+    .Get<ZaloOptions>()
+    ?? new ZaloOptions();
+builder.Services.AddSingleton(zalo);
 builder.Services.AddSingleton<ICaseCodeParser, CaseCodeParser>();
 builder.Services.AddScoped<ICaseCodeGenerator, CaseCodeGenerator>();
 

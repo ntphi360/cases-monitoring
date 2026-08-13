@@ -17,7 +17,12 @@ export async function exportCases(params = {}, format = "xlsx") {
   });
   query.set("format", format);
 
-  const response = await fetch(`${API_BASE_URL}/Cases/export?${query}`);
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/Cases/export?${query}`);
+  } catch {
+    throw new Error("Không thể kết nối máy chủ. Vui lòng thử lại.");
+  }
   if (!response.ok) {
     let message = `Export thất bại (${response.status} ${response.statusText})`;
     try {

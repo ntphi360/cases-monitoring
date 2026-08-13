@@ -24,19 +24,22 @@ namespace HoSoMonitoring.Api.Controllers
         private readonly ICaseCodeParser _caseCodeParser;
         private readonly ICaseCodeGenerator _caseCodeGenerator;
         private readonly AdministrativeUnitOptions _administrativeUnit;
+        private readonly MonitoringOptions _monitoring;
 
         public CasesController(
             IUnitOfWork unitOfWork,
             IMapper mapper,
             ICaseCodeParser caseCodeParser,
             ICaseCodeGenerator caseCodeGenerator,
-            AdministrativeUnitOptions administrativeUnit)
+            AdministrativeUnitOptions administrativeUnit,
+            MonitoringOptions monitoring)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _caseCodeParser = caseCodeParser;
             _caseCodeGenerator = caseCodeGenerator;
             _administrativeUnit = administrativeUnit;
+            _monitoring = monitoring;
         }
 
         // GET /api/cases/paging?pageIndex=1&pageSize=10
@@ -83,6 +86,7 @@ namespace HoSoMonitoring.Api.Controllers
             }
 
             var result = _mapper.Map<CaseDto>(caseEntity);
+            ApplyDeadlineStatus(result, caseEntity);
             ApplyCaseCodeInfo(result);
 
             return Ok(result);
@@ -98,6 +102,10 @@ namespace HoSoMonitoring.Api.Controllers
 
             var result = _mapper
                 .Map<List<CaseInListDto>>(cases);
+            for (var index = 0; index < result.Count; index++)
+            {
+                ApplyDeadlineStatus(result[index], cases[index]);
+            }
 
             return Ok(result);
         }
@@ -222,6 +230,7 @@ namespace HoSoMonitoring.Api.Controllers
             }
 
             var result = _mapper.Map<CaseDto>(caseEntity);
+            ApplyDeadlineStatus(result, caseEntity);
             ApplyCaseCodeInfo(result);
 
             return CreatedAtAction(
@@ -265,6 +274,7 @@ namespace HoSoMonitoring.Api.Controllers
             await _unitOfWork.CompleteAsync();
 
             var result = _mapper.Map<CaseDto>(caseEntity);
+            ApplyDeadlineStatus(result, caseEntity);
             ApplyCaseCodeInfo(result);
 
             return Ok(result);
@@ -305,6 +315,14 @@ namespace HoSoMonitoring.Api.Controllers
             caseDto.WardName = caseCodeInfo.WardName;
             caseDto.CaseCodeDate = caseCodeInfo.ReceivedDate;
             caseDto.DailySequence = caseCodeInfo.DailySequence;
+        }
+
+        private void ApplyDeadlineStatus(CaseInListDto dto, Case caseEntity)
+        {
+            dto.DeadlineStatus = DeadlineStatusCalculator.Calculate(
+                caseEntity,
+                DateTime.Now,
+                _monitoring.WarningThresholdDays);
         }
     }
 }

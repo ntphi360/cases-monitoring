@@ -10,8 +10,6 @@ public class CaseDto : CaseInListDto
 
     public int DepartmentId { get; set; }
 
-    public int? CurrentAssigneeId { get; set; }
-
     public DataSourceType SourceType { get; set; }
 
     public DateTime? ExternalUpdatedAt { get; set; }

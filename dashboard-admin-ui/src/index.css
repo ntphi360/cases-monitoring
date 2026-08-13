@@ -18,6 +18,28 @@ body {
   margin: 0;
 }
 
+.data-sync-status {
+  margin: -8px 0 16px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.data-stale-warning {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid #f4c36a;
+  border-radius: 8px;
+  background: #fff8e8;
+  color: #8a5200;
+  font-size: 13px;
+}
+
+.data-sync-error {
+  margin: -8px 0 16px;
+  color: #c92f39;
+  font-size: 12px;
+}
+
 button,
 input {
   font: inherit;
@@ -196,8 +218,7 @@ button {
 }
 
 .app-header__start,
-.app-header__actions,
-.user-profile {
+.app-header__actions {
   display: flex;
   align-items: center;
 }
@@ -310,6 +331,8 @@ button {
 .notification-dropdown__header strong { color: #1e2d52; font-size: 12px; }
 .notification-dropdown__header small { color: #8a97aa; font-size: 9px; }
 .notification-dropdown__header button { padding: 4px 0; color: #1768dc; background: transparent; border: 0; font-size: 9px; font-weight: 650; cursor: pointer; }
+.notification-dropdown__header button:disabled,
+.notification-dropdown__item:disabled { opacity: .58; cursor: wait; }
 .notification-dropdown__list { max-height: 350px; overflow-y: auto; }
 .notification-dropdown__message { margin: 0; padding: 28px 12px; color: #8a97aa; font-size: 10px; text-align: center; }
 .notification-dropdown__message--error { color: #d6333e; }
@@ -327,52 +350,6 @@ button {
 
 @media (max-width: 520px) {
   .notification-dropdown { position: fixed; top: 60px; right: 12px; left: 12px; width: auto; }
-}
-
-.user-profile {
-  gap: 9px;
-  margin-left: 8px;
-  padding-left: 14px;
-  border-left: 1px solid #e7ecf3;
-}
-
-.user-profile__avatar {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
-  place-items: center;
-  overflow: hidden;
-  color: #ffffff;
-  background: linear-gradient(145deg, #314f7a, #172b4d);
-  border: 2px solid #e6eef9;
-  border-radius: 50%;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.user-profile__details {
-  display: flex;
-  min-width: 94px;
-  flex-direction: column;
-  line-height: 1.25;
-}
-
-.user-profile__details strong {
-  color: #172554;
-  font-size: 12px;
-  font-weight: 650;
-}
-
-.user-profile__details span {
-  margin-top: 2px;
-  color: #8a97aa;
-  font-size: 10px;
-  font-weight: 650;
-}
-
-.user-profile__chevron {
-  color: #718096;
 }
 
 .main-content {
@@ -454,12 +431,6 @@ button {
 }
 
 @media (max-width: 620px) {
-  .app-header__search,
-  .user-profile__details,
-  .user-profile__chevron {
-    display: none;
-  }
-
   .app-header {
     min-height: 58px;
     padding-inline: 12px;
@@ -467,11 +438,6 @@ button {
 
   .app-header__start {
     gap: 8px;
-  }
-
-  .user-profile {
-    margin-left: 2px;
-    padding-left: 8px;
   }
 
   .main-content {
@@ -484,7 +450,4 @@ button {
     min-width: 0;
   }
 
-  .user-profile {
-    display: none;
-  }
 }

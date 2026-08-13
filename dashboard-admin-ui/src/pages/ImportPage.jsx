@@ -1,6 +1,5 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  Download,
   FileSpreadsheet,
   LoaderCircle,
   RotateCcw,
@@ -8,21 +7,11 @@ import {
 } from "lucide-react";
 
 import { postFormData } from "../services/api";
+import { getLastImportSync } from "../services/importService";
 
 import "./ImportPage.css";
 
 const acceptedExtensions = [".xlsx", ".csv"];
-const initialFilters = {
-  fromDate: "",
-  toDate: "",
-  field: "",
-  procedure: "",
-  department: "",
-  handler: "",
-  status: "",
-  format: "xlsx",
-};
-
 function formatFileSize(bytes) {
   if (!Number.isFinite(bytes)) return "—";
   if (bytes < 1024) return `${bytes} B`;
@@ -50,6 +39,22 @@ function ImportPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
+  const [lastSync, setLastSync] = useState(null);
+  const [syncError, setSyncError] = useState("");
+
+  function loadLastSync() {
+    getLastImportSync({ force: true })
+      .then((data) => { setLastSync(data); setSyncError(""); })
+      .catch((loadError) => setSyncError(loadError.message || "Không thể tải thời điểm cập nhật dữ liệu."));
+  }
+
+  useEffect(() => {
+    let isCurrent = true;
+    getLastImportSync()
+      .then((data) => { if (isCurrent) setLastSync(data); })
+      .catch((loadError) => { if (isCurrent) setSyncError(loadError.message || "Không thể tải thời điểm cập nhật dữ liệu."); });
+    return () => { isCurrent = false; };
+  }, []);
 
   function handleFileChange(event) {
     const [file] = event.target.files;
@@ -89,6 +94,7 @@ function ImportPage() {
     try {
       const importResult = await postFormData("/import/cases", formData);
       setResult(importResult);
+      loadLastSync();
     } catch (importError) {
       setError(importError.message || "Không thể import dữ liệu.");
     } finally {
@@ -102,6 +108,8 @@ function ImportPage() {
         <h1>Import dữ liệu</h1>
         <p>Chuẩn bị file dữ liệu và thiết lập điều kiện xuất báo cáo.</p>
       </div>
+      {lastSync?.lastUpdatedAt && <p className="data-sync-status">Cập nhật dữ liệu lần cuối: {formatModifiedDate(new Date(lastSync.lastUpdatedAt).getTime())}</p>}
+      {syncError && <p className="transfer-message transfer-message--error" role="alert">{syncError}</p>}
 
       <article className="transfer-card">
         <header className="transfer-card__header">
@@ -206,8 +214,16 @@ function ImportPage() {
                   <strong>{result.totalRows}</strong>
                 </div>
                 <div>
-                  <span>Thành công</span>
-                  <strong>{result.successCount}</strong>
+                  <span>Thêm mới</span>
+                  <strong>{result.insertedCount}</strong>
+                </div>
+                <div>
+                  <span>Cập nhật</span>
+                  <strong>{result.updatedCount}</strong>
+                </div>
+                <div>
+                  <span>Không đổi</span>
+                  <strong>{result.unchangedCount}</strong>
                 </div>
                 <div>
                   <span>Thất bại</span>

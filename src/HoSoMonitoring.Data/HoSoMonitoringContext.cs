@@ -35,6 +35,12 @@ namespace HoSoMonitoring.Data
         // Thông báo nghiệp vụ gửi tới cán bộ xử lý.
         public DbSet<Notification> Notifications { get; set; }
 
+        // Lịch sử các lần đồng bộ/import dữ liệu nguồn.
+        public DbSet<ImportHistory> ImportHistories { get; set; }
+
+        // Audit kết quả gửi nhắc nhở theo từng kênh.
+        public DbSet<ReminderDelivery> ReminderDeliveries { get; set; }
+
         // Phân quyền cán bộ theo lĩnh vực thủ tục hành chính
         public DbSet<UserProcedureField> UserProcedureFields { get; set; }
 
@@ -149,11 +155,29 @@ namespace HoSoMonitoring.Data
                 .HasForeignKey(x => x.CaseId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            builder.Entity<ImportHistory>()
+                .HasIndex(x => new { x.IsSuccess, x.CompletedAt });
+
             builder.Entity<Notification>()
                 .HasOne(x => x.User)
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<ReminderDelivery>()
+                .HasOne(x => x.Case)
+                .WithMany()
+                .HasForeignKey(x => x.CaseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<ReminderDelivery>()
+                .HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<ReminderDelivery>()
+                .HasIndex(x => new { x.CaseId, x.SentAt });
         }
     }
 }

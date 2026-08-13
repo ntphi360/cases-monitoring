@@ -45,6 +45,7 @@ public class ImportController : ControllerBase
             var result = await _importService.ImportCasesAsync(
                 stream,
                 extension,
+                file.FileName,
                 cancellationToken);
 
             return Ok(result);
@@ -53,5 +54,12 @@ public class ImportController : ControllerBase
         {
             return BadRequest(new { message = exception.Message });
         }
+    }
+
+    [HttpGet("last-sync")]
+    public async Task<IActionResult> GetLastSync(
+        CancellationToken cancellationToken)
+    {
+        return Ok(await _importService.GetLastSyncAsync(cancellationToken));
     }
 }

@@ -6,6 +6,7 @@ using HoSoMonitoring.Core.Enums;
 using HoSoMonitoring.Core.Models;
 using HoSoMonitoring.Core.Models.Content;
 using HoSoMonitoring.Core.Repositories;
+using HoSoMonitoring.Core.Services;
 using HoSoMonitoring.Data.SeedWorks;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,19 +15,20 @@ namespace HoSoMonitoring.Data.Repositories
     public class CaseRepository
         : RepositoryBase<Case, int>, ICaseRepository
     {
-        private const int AlertWarningThresholdDays = 14;
-
         private readonly IMapper _mapper;
         private readonly AdministrativeUnitOptions _administrativeUnit;
+        private readonly MonitoringOptions _monitoring;
 
         public CaseRepository(
             HoSoMonitoringContext context,
             IMapper mapper,
-            AdministrativeUnitOptions administrativeUnit)
+            AdministrativeUnitOptions administrativeUnit,
+            MonitoringOptions monitoring)
             : base(context)
         {
             _mapper = mapper;
             _administrativeUnit = administrativeUnit;
+            _monitoring = monitoring;
         }
 
         public async Task<List<Case>> GetOverdueCasesAsync(int count)
@@ -34,7 +36,8 @@ namespace HoSoMonitoring.Data.Repositories
             return await _context.Cases
                 .Where(x =>
                     x.Deadline < DateTime.Now &&
-                    x.CompletedAt == null)
+                    x.Status != CaseStatus.Completed &&
+                    x.Status != CaseStatus.Cancelled)
                 .OrderBy(x => x.Deadline)
                 .Take(count)
                 .ToListAsync();
@@ -156,13 +159,12 @@ namespace HoSoMonitoring.Data.Repositories
         {
             var now = DateTime.Now;
             var tomorrow = now.Date.AddDays(1);
-            var warningDeadline = now.AddDays(AlertWarningThresholdDays);
+            var warningDeadline = now.AddDays(_monitoring.WarningThresholdDays);
 
             var baseQuery = _context.Cases
                 .AsNoTracking()
                 .Where(item =>
-                    item.CompletedAt == null
-                    && item.Status != CaseStatus.Completed
+                    item.Status != CaseStatus.Completed
                     && item.Status != CaseStatus.Cancelled
                     && item.Deadline <= warningDeadline);
 
@@ -226,6 +228,7 @@ namespace HoSoMonitoring.Data.Repositories
             foreach (var caseDto in cases)
             {
                 caseDto.OrganizationName = _administrativeUnit.OrganizationName;
+                ApplyDeadlineStatus(caseDto, now);
             }
 
             return new CaseAlertPageResult
@@ -244,7 +247,7 @@ namespace HoSoMonitoring.Data.Repositories
         public async Task<DashboardSummaryDto> GetDashboardSummaryAsync()
         {
             var now = DateTime.Now;
-            var warningDeadline = now.AddDays(AlertWarningThresholdDays);
+            var warningDeadline = now.AddDays(_monitoring.WarningThresholdDays);
             var casesQuery = _context.Cases.AsNoTracking();
 
             var summary = await casesQuery
@@ -255,13 +258,11 @@ namespace HoSoMonitoring.Data.Repositories
                     Completed = group.Count(item =>
                         item.Status == CaseStatus.Completed),
                     Overdue = group.Count(item =>
-                        item.CompletedAt == null
-                        && item.Status != CaseStatus.Completed
+                        item.Status != CaseStatus.Completed
                         && item.Status != CaseStatus.Cancelled
                         && item.Deadline < now),
                     NearDeadline = group.Count(item =>
-                        item.CompletedAt == null
-                        && item.Status != CaseStatus.Completed
+                        item.Status != CaseStatus.Completed
                         && item.Status != CaseStatus.Cancelled
                         && item.Deadline >= now
                         && item.Deadline <= warningDeadline)
@@ -295,7 +296,9 @@ namespace HoSoMonitoring.Data.Repositories
                 })
                 .ToListAsync();
             var completedByMonth = await casesQuery
-                .Where(item => item.CompletedAt >= firstTrendMonth)
+                .Where(item =>
+                    item.Status == CaseStatus.Completed
+                    && item.CompletedAt >= firstTrendMonth)
                 .GroupBy(item => new
                 {
                     Year = item.CompletedAt!.Value.Year,
@@ -334,6 +337,7 @@ namespace HoSoMonitoring.Data.Repositories
             foreach (var caseDto in recentCases)
             {
                 caseDto.OrganizationName = _administrativeUnit.OrganizationName;
+                ApplyDeadlineStatus(caseDto, now);
             }
 
             return new DashboardSummaryDto
@@ -415,8 +419,7 @@ namespace HoSoMonitoring.Data.Repositories
                     Processing = group.Count(item =>
                         item.Status == CaseStatus.InProgress),
                     Overdue = group.Count(item =>
-                        item.CompletedAt == null
-                        && item.Status != CaseStatus.Completed
+                        item.Status != CaseStatus.Completed
                         && item.Status != CaseStatus.Cancelled
                         && item.Deadline < now)
                 })
@@ -500,7 +503,9 @@ namespace HoSoMonitoring.Data.Repositories
                     })
                     .ToListAsync();
                 var completed = await query
-                    .Where(item => item.CompletedAt.HasValue)
+                    .Where(item =>
+                        item.Status == CaseStatus.Completed
+                        && item.CompletedAt.HasValue)
                     .GroupBy(item => item.CompletedAt!.Value.Date)
                     .Select(group => new
                     {
@@ -539,7 +544,9 @@ namespace HoSoMonitoring.Data.Repositories
                     })
                     .ToListAsync();
                 var completed = await query
-                    .Where(item => item.CompletedAt.HasValue)
+                    .Where(item =>
+                        item.Status == CaseStatus.Completed
+                        && item.CompletedAt.HasValue)
                     .GroupBy(item => new
                     {
                         Year = item.CompletedAt!.Value.Year,
@@ -678,6 +685,7 @@ namespace HoSoMonitoring.Data.Repositories
             foreach (var caseDto in cases)
             {
                 caseDto.OrganizationName = _administrativeUnit.OrganizationName;
+                ApplyDeadlineStatus(caseDto, DateTime.Now);
             }
 
             return new PageResult<CaseInListDto>
@@ -689,6 +697,21 @@ namespace HoSoMonitoring.Data.Repositories
                     totalCount / (double)pageSize),
                 Results = cases
             };
+        }
+
+        private void ApplyDeadlineStatus(CaseInListDto caseDto, DateTime now)
+        {
+            var item = new Case
+            {
+                ExternalCaseCode = caseDto.ExternalCaseCode,
+                Deadline = caseDto.Deadline,
+                CompletedAt = caseDto.CompletedAt,
+                Status = caseDto.Status
+            };
+            caseDto.DeadlineStatus = DeadlineStatusCalculator.Calculate(
+                item,
+                now,
+                _monitoring.WarningThresholdDays);
         }
     }
 }

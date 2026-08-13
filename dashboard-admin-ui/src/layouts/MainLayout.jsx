@@ -1,22 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { useSelector } from "react-redux";
 import {
   Bell,
   BellRing,
-  Building2,
   ChartNoAxesCombined,
-  ChevronDown,
   ChevronRight,
   FileText,
   FolderKanban,
   Import,
   LayoutDashboard,
   Menu,
-  Search,
-  Settings,
   ShieldCheck,
-  Users,
-  Workflow,
 } from "lucide-react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -32,10 +25,6 @@ const menuItems = [
   { label: "Thông báo", path: "/notifications", icon: Bell },
   { label: "Thống kê & Báo cáo", path: "/reports", icon: ChartNoAxesCombined },
   { label: "Import dữ liệu", path: "/import", icon: Import },
-  { label: "Người dùng", path: "/users", icon: Users },
-  { label: "Phòng ban", path: "/departments", icon: Building2 },
-  { label: "Thủ tục", path: "/procedures", icon: Workflow },
-  { label: "Cài đặt", path: "/settings", icon: Settings },
 ];
 
 const pageTitles = {
@@ -45,10 +34,6 @@ const pageTitles = {
   "/notifications": "Thông báo",
   "/reports": "Thống kê & Báo cáo",
   "/import": "Import dữ liệu",
-  "/users": "Người dùng",
-  "/departments": "Phòng ban",
-  "/procedures": "Thủ tục",
-  "/settings": "Cài đặt",
 };
 
 function getBreadcrumbs(pathname) {
@@ -78,7 +63,7 @@ function Sidebar({ isCollapsed, isMobileOpen, onNavigate }) {
         </div>
         <div className="sidebar__brand-text">
           <strong>HỆ THỐNG</strong>
-          <span>QUẢN LÝ HỒ SƠ</span>
+          <span>GIÁM SÁT HỒ SƠ</span>
         </div>
       </div>
 
@@ -126,13 +111,15 @@ function Breadcrumbs({ items }) {
 
 function Header({ breadcrumbs, isMobileOpen, onToggleSidebar }) {
   const navigate = useNavigate();
-  const userId = useSelector((state) => state.auth.user?.id);
+  const userId = undefined;
   const notificationRef = useRef(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notificationLoading, setNotificationLoading] = useState(true);
   const [notificationError, setNotificationError] = useState("");
+  const [notificationActionId, setNotificationActionId] = useState(null);
+  const [markingAll, setMarkingAll] = useState(false);
 
   useEffect(() => {
     let isCurrent = true;
@@ -183,6 +170,8 @@ function Header({ breadcrumbs, isMobileOpen, onToggleSidebar }) {
   }
 
   async function openNotification(item) {
+    if (notificationActionId !== null) return;
+    setNotificationActionId(item.id);
     try {
       if (!item.isRead) {
         await markNotificationRead(item.id);
@@ -194,10 +183,14 @@ function Header({ breadcrumbs, isMobileOpen, onToggleSidebar }) {
       if (item.caseId) navigate(`/cases/${item.caseId}`);
     } catch (error) {
       setNotificationError(error.message || "Không thể đánh dấu thông báo đã đọc.");
+    } finally {
+      setNotificationActionId(null);
     }
   }
 
   async function markAllRead() {
+    if (markingAll) return;
+    setMarkingAll(true);
     try {
       await markAllNotificationsRead(userId);
       setNotifications((current) => current.map((item) => ({ ...item, isRead: true })));
@@ -205,6 +198,8 @@ function Header({ breadcrumbs, isMobileOpen, onToggleSidebar }) {
       window.dispatchEvent(new Event("notifications-updated"));
     } catch (error) {
       setNotificationError(error.message || "Không thể đánh dấu tất cả đã đọc.");
+    } finally {
+      setMarkingAll(false);
     }
   }
 
@@ -224,9 +219,6 @@ function Header({ breadcrumbs, isMobileOpen, onToggleSidebar }) {
       </div>
 
       <div className="app-header__actions">
-        <button className="icon-button app-header__search" type="button" aria-label="Tìm kiếm">
-          <Search size={20} />
-        </button>
         <div className="notification-menu" ref={notificationRef}>
           <button
             aria-controls="header-notification-dropdown"
@@ -244,14 +236,14 @@ function Header({ breadcrumbs, isMobileOpen, onToggleSidebar }) {
             <section className="notification-dropdown" id="header-notification-dropdown">
               <header className="notification-dropdown__header">
                 <div><strong>Thông báo</strong><small>{unreadCount} chưa đọc</small></div>
-                {unreadCount > 0 && <button type="button" onClick={markAllRead}>Đánh dấu tất cả đã đọc</button>}
+                {unreadCount > 0 && <button disabled={markingAll} type="button" onClick={markAllRead}>{markingAll ? "Đang cập nhật..." : "Đánh dấu tất cả đã đọc"}</button>}
               </header>
               <div className="notification-dropdown__list">
                 {notificationLoading && <p className="notification-dropdown__message">Đang tải thông báo...</p>}
                 {!notificationLoading && notificationError && <p className="notification-dropdown__message notification-dropdown__message--error" role="alert">{notificationError}</p>}
                 {!notificationLoading && !notificationError && notifications.length === 0 && <p className="notification-dropdown__message">Không có thông báo</p>}
                 {!notificationLoading && notifications.map((item) => (
-                  <button className={`notification-dropdown__item${item.isRead ? " notification-dropdown__item--read" : ""}`} key={item.id} type="button" onClick={() => openNotification(item)}>
+                  <button className={`notification-dropdown__item${item.isRead ? " notification-dropdown__item--read" : ""}`} disabled={notificationActionId === item.id} key={item.id} type="button" onClick={() => openNotification(item)}>
                     <span className="notification-dropdown__item-content">
                       <strong>{item.message}</strong>
                       <small>{item.externalCaseCode ? `${item.externalCaseCode} · ` : ""}{formatNotificationTime(item.createdAt)}</small>
@@ -263,15 +255,6 @@ function Header({ breadcrumbs, isMobileOpen, onToggleSidebar }) {
               <button className="notification-dropdown__all" type="button" onClick={() => { setNotificationOpen(false); navigate("/notifications"); }}>Xem tất cả</button>
             </section>
           )}
-        </div>
-
-        <div className="user-profile">
-          <div className="user-profile__avatar" aria-hidden="true">NA</div>
-          <div className="user-profile__details">
-            <strong>Nguyễn Văn A</strong>
-            <span>ADMIN</span>
-          </div>
-          <ChevronDown className="user-profile__chevron" size={16} />
         </div>
       </div>
     </header>

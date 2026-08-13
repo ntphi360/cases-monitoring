@@ -56,12 +56,14 @@
 .preview-table td { max-width: 220px; padding: 8px 12px; overflow: hidden; border-bottom: 1px solid #edf1f6; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
 .preview-table tbody tr:hover { background: #f8fbff; }
 .import-result { padding-bottom: 15px; border-top: 1px solid #edf1f6; }
-.import-result__summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 15px; }
+.import-result__summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; padding: 15px; }
 .import-result__summary > div { display: flex; min-width: 0; flex-direction: column; gap: 3px; padding: 11px 12px; background: #f8fafc; border: 1px solid #e8edf4; border-radius: 8px; }
 .import-result__summary span { color: #7a889c; font-size: 9.5px; font-weight: 650; text-transform: uppercase; }
 .import-result__summary strong { color: #1e2d52; font-size: 19px; }
 .import-result__summary > div:nth-child(2) strong { color: #178b54; }
-.import-result__summary > div:nth-child(3) strong { color: #c92f39; }
+.import-result__summary > div:nth-child(3) strong { color: #1768dc; }
+.import-result__summary > div:nth-child(4) strong { color: #64748b; }
+.import-result__summary > div:nth-child(5) strong { color: #c92f39; }
 .import-result > .transfer-message { margin-bottom: 0; }
 .preview-empty-state { display: flex; min-height: 150px; align-items: center; justify-content: center; flex-direction: column; gap: 6px; padding: 24px; color: #9aa7b8; background: #fbfcfe; border-top: 1px solid #edf1f6; text-align: center; }
 .preview-empty-state strong { color: #52627a; font-size: 11px; }
@@ -81,6 +83,7 @@
 .transfer-card--export > .transfer-message:last-child { margin-bottom: 15px; }
 
 @media (max-width: 1100px) { .export-form { grid-template-columns: repeat(3, minmax(0, 1fr)); } .export-form__actions { grid-column: span 2; } }
+@media (max-width: 900px) { .import-result__summary { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 760px) { .export-form { grid-template-columns: repeat(2, minmax(0, 1fr)); } .export-form__actions { grid-column: 1 / -1; } }
 @media (max-width: 520px) {
   .data-transfer-page__heading h1 { font-size: 22px; }

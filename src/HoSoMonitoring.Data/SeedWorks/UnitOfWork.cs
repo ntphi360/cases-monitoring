@@ -12,10 +12,11 @@ namespace HoSoMonitoring.Data.SeedWorks
         public UnitOfWork(
             HoSoMonitoringContext context,
             IMapper mapper,
-            HoSoMonitoring.Core.Configurations.AdministrativeUnitOptions administrativeUnit)
+            HoSoMonitoring.Core.Configurations.AdministrativeUnitOptions administrativeUnit,
+            HoSoMonitoring.Core.Configurations.MonitoringOptions monitoring)
         {
             _context = context;
-            Cases = new CaseRepository(context, mapper, administrativeUnit);
+            Cases = new CaseRepository(context, mapper, administrativeUnit, monitoring);
             Departments = new DepartmentRepository(context);
             ProcedureFields = new ProcedureFieldRepository(context);
             Procedures = new ProcedureRepository(context);
