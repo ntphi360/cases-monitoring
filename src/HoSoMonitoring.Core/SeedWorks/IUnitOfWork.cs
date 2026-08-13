@@ -18,6 +18,8 @@ namespace HoSoMonitoring.Core.SeedWorks
 
         ICaseHistoryRepository CaseHistories { get; }
 
+        INotificationRepository Notifications { get; }
+
         IUserProcedureFieldRepository UserProcedureFields { get; }
 
         Task<int> CompleteAsync();

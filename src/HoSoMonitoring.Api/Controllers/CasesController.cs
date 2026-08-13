@@ -6,6 +6,7 @@ using HoSoMonitoring.Core.Models;
 using HoSoMonitoring.Core.Models.Content;
 using HoSoMonitoring.Core.SeedWorks;
 using HoSoMonitoring.Core.Services;
+using HoSoMonitoring.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -99,6 +100,49 @@ namespace HoSoMonitoring.Api.Controllers
                 .Map<List<CaseInListDto>>(cases);
 
             return Ok(result);
+        }
+
+        [HttpGet("export")]
+        public async Task<IActionResult> ExportCases(
+            [FromQuery] string? keyword,
+            [FromQuery] int? departmentId,
+            [FromQuery] int? procedureFieldId,
+            [FromQuery] int? procedureId,
+            [FromQuery] int? assignedUserId,
+            [FromQuery] CaseStatus? status,
+            [FromQuery] DateTime? receivedFrom,
+            [FromQuery] DateTime? receivedTo,
+            [FromQuery] string format = "xlsx")
+        {
+            var normalizedFormat = format.Trim().ToLowerInvariant();
+            if (normalizedFormat is not ("xlsx" or "csv"))
+            {
+                return BadRequest(new { message = "Định dạng export chỉ hỗ trợ xlsx hoặc csv." });
+            }
+
+            var cases = await _unitOfWork.Cases.GetForExportAsync(
+                keyword,
+                departmentId,
+                procedureFieldId,
+                procedureId,
+                assignedUserId,
+                status,
+                receivedFrom,
+                receivedTo);
+            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmm");
+
+            if (normalizedFormat == "csv")
+            {
+                return File(
+                    CaseExportFileBuilder.BuildCsv(cases),
+                    "text/csv; charset=utf-8",
+                    $"HoSo_{timestamp}.csv");
+            }
+
+            return File(
+                CaseExportFileBuilder.BuildXlsx(cases),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                $"HoSo_{timestamp}.xlsx");
         }
 
         // GET /api/cases/alerts?type=Overdue&keyword=H29&procedureFieldId=1&procedureId=1&departmentId=1&assignedUserId=1&pageIndex=1&pageSize=10

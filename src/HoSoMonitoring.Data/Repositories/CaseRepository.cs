@@ -57,6 +57,93 @@ namespace HoSoMonitoring.Data.Repositories
                 .FirstOrDefaultAsync(item => item.Id == id);
         }
 
+        public async Task<List<CaseExportDto>> GetForExportAsync(
+            string? keyword,
+            int? departmentId,
+            int? procedureFieldId,
+            int? procedureId,
+            int? assignedUserId,
+            CaseStatus? status,
+            DateTime? receivedFrom,
+            DateTime? receivedTo)
+        {
+            var query = _context.Cases.AsNoTracking();
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                query = query.Where(item =>
+                    item.ExternalCaseCode.Contains(keyword)
+                    || item.ApplicantName.Contains(keyword));
+            }
+
+            if (departmentId.HasValue)
+            {
+                query = query.Where(item => item.DepartmentId == departmentId.Value);
+            }
+
+            if (procedureFieldId.HasValue)
+            {
+                query = query.Where(item =>
+                    item.Procedure!.ProcedureFieldId == procedureFieldId.Value);
+            }
+
+            if (procedureId.HasValue)
+            {
+                query = query.Where(item => item.ProcedureId == procedureId.Value);
+            }
+
+            if (assignedUserId.HasValue)
+            {
+                query = query.Where(item =>
+                    item.CurrentAssigneeId == assignedUserId.Value);
+            }
+
+            if (status.HasValue)
+            {
+                query = query.Where(item => item.Status == status.Value);
+            }
+
+            if (receivedFrom.HasValue)
+            {
+                query = query.Where(item =>
+                    item.ReceivedAt >= receivedFrom.Value.Date);
+            }
+
+            if (receivedTo.HasValue)
+            {
+                var toExclusive = receivedTo.Value.Date.AddDays(1);
+                query = query.Where(item => item.ReceivedAt < toExclusive);
+            }
+
+            var rows = await query
+                .OrderByDescending(item => item.ReceivedAt)
+                .Select(item => new CaseExportDto
+                {
+                    ExternalCaseCode = item.ExternalCaseCode,
+                    ApplicantName = item.ApplicantName,
+                    ProcedureFieldName = item.Procedure!.ProcedureField!.Name,
+                    ProcedureName = item.Procedure.Name,
+                    DepartmentName = item.Department!.Name,
+                    OrganizationName = item.OrganizationName,
+                    AssigneeName = item.CurrentAssignee == null
+                        ? null
+                        : item.CurrentAssignee.FullName,
+                    ReceivedAt = item.ReceivedAt,
+                    Deadline = item.Deadline,
+                    AppointmentDate = item.AppointmentDate,
+                    CompletedAt = item.CompletedAt,
+                    Status = item.Status
+                })
+                .ToListAsync();
+
+            foreach (var row in rows)
+            {
+                row.OrganizationName = _administrativeUnit.OrganizationName;
+            }
+
+            return rows;
+        }
+
         public async Task<CaseAlertPageResult> GetAlertsPagingAsync(
             CaseAlertType? type,
             string? keyword,

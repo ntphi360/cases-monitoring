@@ -17,6 +17,8 @@
 
 .cases-page__heading h1 { margin: 0; color: #172554; font-size: 24px; line-height: 1.25; letter-spacing: -0.02em; }
 .cases-page__heading p { margin: 4px 0 0; color: #718096; font-size: 12px; line-height: 1.5; }
+.cases-page__heading-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.cases-export-error { margin: 0 0 10px; padding: 8px 10px; color: #d6333e; background: #fff8f8; border: 1px solid #f3cdd1; border-radius: 7px; font-size: 10px; }
 
 .cases-button {
   display: inline-flex;
@@ -173,7 +175,7 @@
 @media (max-width: 760px) { .cases-filter-card { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cases-filter-card__actions { grid-column: 1 / -1; } }
 @media (max-width: 520px) {
   .cases-page__heading { align-items: stretch; flex-direction: column; }
-  .cases-page__heading .cases-button { align-self: flex-start; }
+  .cases-page__heading-actions { justify-content: flex-start; }
   .cases-filter-card, .case-form-grid, .case-details { grid-template-columns: 1fr; }
   .case-form-grid__wide, .case-details__item--wide { grid-column: auto; }
   .case-modal { padding: 10px; }

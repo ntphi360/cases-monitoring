@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronLeft, ChevronRight, Eye, Filter, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Eye, Filter, Pencil, Plus, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
@@ -19,6 +19,7 @@ import {
   getProcedures,
   getUsers,
 } from "../services/caseService";
+import { exportCases } from "../services/caseExportService";
 import "./CasesPage.css";
 
 const PAGE_SIZE = 10;
@@ -331,6 +332,8 @@ function CasesPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [editingCase, setEditingCase] = useState(null);
   const [deletingCase, setDeletingCase] = useState(null);
+  const [exporting, setExporting] = useState("");
+  const [exportError, setExportError] = useState("");
 
   useEffect(() => {
     let isCurrent = true;
@@ -455,6 +458,27 @@ function CasesPage() {
     setDeletingCase(null);
   }
 
+  async function handleExport(format) {
+    setExporting(format);
+    setExportError("");
+    try {
+      await exportCases({
+        keyword: appliedFilters.search.trim(),
+        procedureFieldId: appliedFilters.fieldId,
+        procedureId: appliedFilters.procedureId,
+        departmentId: appliedFilters.departmentId,
+        assignedUserId: appliedFilters.assignedUserId,
+        status: appliedFilters.status,
+        receivedFrom: appliedFilters.receivedFrom,
+        receivedTo: appliedFilters.receivedTo,
+      }, format);
+    } catch (error) {
+      setExportError(error.message || "Không thể export dữ liệu hồ sơ.");
+    } finally {
+      setExporting("");
+    }
+  }
+
   return (
     <section className="cases-page">
       <div className="cases-page__heading">
@@ -462,12 +486,18 @@ function CasesPage() {
           <h1>Quản lý hồ sơ</h1>
           <p>Theo dõi, tra cứu và quản lý hồ sơ hành chính.</p>
         </div>
-        {isAdmin && (
-          <button className="cases-button cases-button--primary" type="button" onClick={() => setIsAdding(true)}>
-            <Plus size={16} /> Thêm hồ sơ
-          </button>
-        )}
+        <div className="cases-page__heading-actions">
+          <button className="cases-button cases-button--secondary" disabled={Boolean(exporting)} type="button" onClick={() => handleExport("xlsx")}><Download size={15} /> {exporting === "xlsx" ? "Đang xuất..." : "Excel"}</button>
+          <button className="cases-button cases-button--secondary" disabled={Boolean(exporting)} type="button" onClick={() => handleExport("csv")}><Download size={15} /> CSV</button>
+          {isAdmin && (
+            <button className="cases-button cases-button--primary" type="button" onClick={() => setIsAdding(true)}>
+              <Plus size={16} /> Thêm hồ sơ
+            </button>
+          )}
+        </div>
       </div>
+
+      {exportError && <p className="cases-export-error" role="alert">Lỗi: {exportError}</p>}
 
       <form className="cases-filter-card" onSubmit={applyFilters}>
         <label className="cases-filter-card__search">

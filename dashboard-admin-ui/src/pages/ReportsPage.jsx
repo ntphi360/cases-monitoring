@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Clock3, FileText, Filter, RotateCcw, TriangleAlert } from "lucide-react";
+import { CheckCircle2, Clock3, Download, FileText, Filter, RotateCcw, TriangleAlert } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -23,6 +23,7 @@ import {
   getUsers,
 } from "../services/caseService";
 import { getReportSummary } from "../services/reportService";
+import { exportCases } from "../services/caseExportService";
 import "./ReportsPage.css";
 
 const emptyFilters = {
@@ -90,6 +91,8 @@ function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [catalogError, setCatalogError] = useState("");
+  const [exporting, setExporting] = useState("");
+  const [exportError, setExportError] = useState("");
 
   useEffect(() => {
     let isCurrent = true;
@@ -168,6 +171,22 @@ function ReportsPage() {
     setLoading(true);
   }
 
+  async function handleExport(format) {
+    setExporting(format);
+    setExportError("");
+    try {
+      await exportCases({
+        ...appliedFilters,
+        receivedFrom: appliedFilters.from,
+        receivedTo: appliedFilters.to,
+      }, format);
+    } catch (error) {
+      setExportError(error.message || "Không thể export báo cáo.");
+    } finally {
+      setExporting("");
+    }
+  }
+
   const kpis = [
     { label: "Tổng hồ sơ", value: report.totalCases, icon: FileText, tone: "blue" },
     { label: "Đã hoàn thành", value: report.completedCases, icon: CheckCircle2, tone: "green" },
@@ -178,9 +197,14 @@ function ReportsPage() {
   return (
     <section className="reports-page">
       <div className="reports-page__heading">
-        <h1>Thống kê &amp; Báo cáo</h1>
-        <p>Tổng hợp dữ liệu hồ sơ theo thời gian và đơn vị xử lý.</p>
+        <div><h1>Thống kê &amp; Báo cáo</h1><p>Tổng hợp dữ liệu hồ sơ theo thời gian và đơn vị xử lý.</p></div>
+        <div className="reports-page__actions">
+          <button className="reports-button" disabled={Boolean(exporting)} type="button" onClick={() => handleExport("xlsx")}><Download size={15} /> {exporting === "xlsx" ? "Đang xuất..." : "Excel"}</button>
+          <button className="reports-button" disabled={Boolean(exporting)} type="button" onClick={() => handleExport("csv")}><Download size={15} /> CSV</button>
+        </div>
       </div>
+
+      {exportError && <p className="reports-feedback reports-feedback--error" role="alert">Lỗi: {exportError}</p>}
 
       <form className="reports-filter" onSubmit={applyFilters}>
         <label><span>Từ ngày</span><input type="date" value={draftFilters.from} onChange={(event) => updateFilter("from", event.target.value)} /></label>

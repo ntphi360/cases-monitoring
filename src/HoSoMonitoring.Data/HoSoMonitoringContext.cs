@@ -32,6 +32,9 @@ namespace HoSoMonitoring.Data
         // Lịch sử thay đổi trạng thái hồ sơ
         public DbSet<CaseHistory> CaseHistories { get; set; }
 
+        // Thông báo nghiệp vụ gửi tới cán bộ xử lý.
+        public DbSet<Notification> Notifications { get; set; }
+
         // Phân quyền cán bộ theo lĩnh vực thủ tục hành chính
         public DbSet<UserProcedureField> UserProcedureFields { get; set; }
 
@@ -139,6 +142,18 @@ namespace HoSoMonitoring.Data
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Notification>()
+                .HasOne(x => x.Case)
+                .WithMany()
+                .HasForeignKey(x => x.CaseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Notification>()
+                .HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

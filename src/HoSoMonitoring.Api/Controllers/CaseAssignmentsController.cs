@@ -61,6 +61,14 @@ public class CaseAssignmentsController : ControllerBase
         assignment.CreatedAt = DateTime.Now;
 
         _unitOfWork.CaseAssignments.Add(assignment);
+        _unitOfWork.Notifications.Add(new Notification
+        {
+            CaseId = caseEntity.Id,
+            UserId = request.AssignedToUserId,
+            Message = $"Bạn được phân công xử lý hồ sơ {caseEntity.ExternalCaseCode}",
+            IsRead = false,
+            CreatedAt = DateTime.Now
+        });
         await _unitOfWork.CompleteAsync();
 
         var result = _mapper.Map<CaseAssignmentDto>(assignment);

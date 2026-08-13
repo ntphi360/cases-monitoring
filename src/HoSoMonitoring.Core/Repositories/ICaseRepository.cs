@@ -28,6 +28,16 @@ namespace HoSoMonitoring.Core.Repositories
 
         Task<Case?> GetDetailByIdAsync(int id);
 
+        Task<List<CaseExportDto>> GetForExportAsync(
+            string? keyword,
+            int? departmentId,
+            int? procedureFieldId,
+            int? procedureId,
+            int? assignedUserId,
+            CaseStatus? status,
+            DateTime? receivedFrom,
+            DateTime? receivedTo);
+
         Task<PageResult<CaseInListDto>> GetAllPagingAsync(
             string? keyword,
             int? departmentId,

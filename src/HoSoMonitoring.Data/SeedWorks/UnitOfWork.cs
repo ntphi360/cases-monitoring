@@ -22,6 +22,7 @@ namespace HoSoMonitoring.Data.SeedWorks
             Users = new UserRepository(context);
             CaseAssignments = new CaseAssignmentRepository(context);
             CaseHistories = new CaseHistoryRepository(context);
+            Notifications = new NotificationRepository(context);
             UserProcedureFields = new UserProcedureFieldRepository(context);
         }
 
@@ -38,6 +39,8 @@ namespace HoSoMonitoring.Data.SeedWorks
         public ICaseAssignmentRepository CaseAssignments { get; private set; }
 
         public ICaseHistoryRepository CaseHistories { get; private set; }
+
+        public INotificationRepository Notifications { get; private set; }
 
         public IUserProcedureFieldRepository UserProcedureFields { get; private set; }
 

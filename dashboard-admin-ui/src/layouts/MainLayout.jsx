@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSelector } from "react-redux";
 import {
   Bell,
   BellRing,
@@ -17,7 +18,12 @@ import {
   Users,
   Workflow,
 } from "lucide-react";
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import {
+  getNotificationPreview,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "../services/notificationService";
 
 const menuItems = [
   { label: "Dashboard", path: "/", icon: LayoutDashboard },
@@ -119,6 +125,89 @@ function Breadcrumbs({ items }) {
 }
 
 function Header({ breadcrumbs, isMobileOpen, onToggleSidebar }) {
+  const navigate = useNavigate();
+  const userId = useSelector((state) => state.auth.user?.id);
+  const notificationRef = useRef(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notificationLoading, setNotificationLoading] = useState(true);
+  const [notificationError, setNotificationError] = useState("");
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    function loadNotifications(event) {
+      const force = event?.type === "notifications-updated";
+      getNotificationPreview(userId, { force })
+        .then((response) => {
+          if (!isCurrent) return;
+          setNotifications(response.results ?? []);
+          setUnreadCount(response.unreadCount ?? 0);
+          setNotificationError("");
+        })
+        .catch((error) => {
+          if (isCurrent) setNotificationError(error.message || "Không thể tải thông báo.");
+        })
+        .finally(() => {
+          if (isCurrent) setNotificationLoading(false);
+        });
+    }
+
+    loadNotifications();
+    window.addEventListener("notifications-updated", loadNotifications);
+    return () => {
+      isCurrent = false;
+      window.removeEventListener("notifications-updated", loadNotifications);
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!notificationOpen) return undefined;
+
+    function closeOnOutsideClick(event) {
+      if (!notificationRef.current?.contains(event.target)) {
+        setNotificationOpen(false);
+      }
+    }
+
+    document.addEventListener("click", closeOnOutsideClick);
+    return () => document.removeEventListener("click", closeOnOutsideClick);
+  }, [notificationOpen]);
+
+  function formatNotificationTime(value) {
+    if (!value) return "—";
+    const [date, time = ""] = String(value).split("T");
+    const [year, month, day] = date.split("-");
+    return `${day}/${month}/${year}${time ? ` ${time.slice(0, 5)}` : ""}`;
+  }
+
+  async function openNotification(item) {
+    try {
+      if (!item.isRead) {
+        await markNotificationRead(item.id);
+        setNotifications((current) => current.map((entry) =>
+          entry.id === item.id ? { ...entry, isRead: true } : entry));
+        setUnreadCount((current) => Math.max(0, current - 1));
+      }
+      setNotificationOpen(false);
+      if (item.caseId) navigate(`/cases/${item.caseId}`);
+    } catch (error) {
+      setNotificationError(error.message || "Không thể đánh dấu thông báo đã đọc.");
+    }
+  }
+
+  async function markAllRead() {
+    try {
+      await markAllNotificationsRead(userId);
+      setNotifications((current) => current.map((item) => ({ ...item, isRead: true })));
+      setUnreadCount(0);
+      window.dispatchEvent(new Event("notifications-updated"));
+    } catch (error) {
+      setNotificationError(error.message || "Không thể đánh dấu tất cả đã đọc.");
+    }
+  }
+
   return (
     <header className="app-header">
       <div className="app-header__start">
@@ -138,10 +227,43 @@ function Header({ breadcrumbs, isMobileOpen, onToggleSidebar }) {
         <button className="icon-button app-header__search" type="button" aria-label="Tìm kiếm">
           <Search size={20} />
         </button>
-        <button className="icon-button notification-button" type="button" aria-label="Thông báo">
-          <Bell size={20} />
-          <span className="notification-button__dot" />
-        </button>
+        <div className="notification-menu" ref={notificationRef}>
+          <button
+            aria-controls="header-notification-dropdown"
+            aria-expanded={notificationOpen}
+            aria-label={`Thông báo${unreadCount ? `, ${unreadCount} chưa đọc` : ""}`}
+            className="icon-button notification-button"
+            type="button"
+            onClick={() => setNotificationOpen((isOpen) => !isOpen)}
+          >
+            <Bell size={20} />
+            {unreadCount > 0 && <span className="notification-button__count">{unreadCount > 99 ? "99+" : unreadCount}</span>}
+          </button>
+
+          {notificationOpen && (
+            <section className="notification-dropdown" id="header-notification-dropdown">
+              <header className="notification-dropdown__header">
+                <div><strong>Thông báo</strong><small>{unreadCount} chưa đọc</small></div>
+                {unreadCount > 0 && <button type="button" onClick={markAllRead}>Đánh dấu tất cả đã đọc</button>}
+              </header>
+              <div className="notification-dropdown__list">
+                {notificationLoading && <p className="notification-dropdown__message">Đang tải thông báo...</p>}
+                {!notificationLoading && notificationError && <p className="notification-dropdown__message notification-dropdown__message--error" role="alert">{notificationError}</p>}
+                {!notificationLoading && !notificationError && notifications.length === 0 && <p className="notification-dropdown__message">Không có thông báo</p>}
+                {!notificationLoading && notifications.map((item) => (
+                  <button className={`notification-dropdown__item${item.isRead ? " notification-dropdown__item--read" : ""}`} key={item.id} type="button" onClick={() => openNotification(item)}>
+                    <span className="notification-dropdown__item-content">
+                      <strong>{item.message}</strong>
+                      <small>{item.externalCaseCode ? `${item.externalCaseCode} · ` : ""}{formatNotificationTime(item.createdAt)}</small>
+                    </span>
+                    <span className="notification-dropdown__status">{item.isRead ? "Đã đọc" : "Chưa đọc"}</span>
+                  </button>
+                ))}
+              </div>
+              <button className="notification-dropdown__all" type="button" onClick={() => { setNotificationOpen(false); navigate("/notifications"); }}>Xem tất cả</button>
+            </section>
+          )}
+        </div>
 
         <div className="user-profile">
           <div className="user-profile__avatar" aria-hidden="true">NA</div>
