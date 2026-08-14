@@ -7,6 +7,7 @@ import {
   getNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  notifyNotificationsUpdated,
 } from "../services/notificationService";
 import "./NotificationsPage.css";
 
@@ -17,10 +18,6 @@ function formatDateTime(value) {
   const [date, time = ""] = String(value).split("T");
   const [year, month, day] = date.split("-");
   return `${day}/${month}/${year}${time ? ` ${time.slice(0, 5)}` : ""}`;
-}
-
-function notifyUnreadChanged() {
-  window.dispatchEvent(new Event("notifications-updated"));
 }
 
 function NotificationsPage() {
@@ -35,6 +32,13 @@ function NotificationsPage() {
   const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState(null);
   const [markingAll, setMarkingAll] = useState(false);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+
+  useEffect(() => {
+    const refresh = () => setRefreshVersion((current) => current + 1);
+    window.addEventListener("notifications-updated", refresh);
+    return () => window.removeEventListener("notifications-updated", refresh);
+  }, []);
 
   useEffect(() => {
     let isCurrent = true;
@@ -57,7 +61,7 @@ function NotificationsPage() {
     return () => {
       isCurrent = false;
     };
-  }, [isRead, pageIndex, userId]);
+  }, [isRead, pageIndex, refreshVersion, userId]);
 
   async function openNotification(item) {
     if (updatingId !== null) return;
@@ -68,7 +72,7 @@ function NotificationsPage() {
         setItems((current) => current.map((entry) =>
           entry.id === item.id ? { ...entry, isRead: true } : entry));
         setUnreadCount((current) => Math.max(0, current - 1));
-        notifyUnreadChanged();
+        notifyNotificationsUpdated();
       }
       if (item.caseId) navigate(`/cases/${item.caseId}`);
     } catch (updateError) {
@@ -85,7 +89,7 @@ function NotificationsPage() {
       await markAllNotificationsRead(userId);
       setItems((current) => current.map((item) => ({ ...item, isRead: true })));
       setUnreadCount(0);
-      notifyUnreadChanged();
+      notifyNotificationsUpdated();
     } catch (updateError) {
       setError(updateError.message || "Không thể đánh dấu tất cả đã đọc.");
     } finally {

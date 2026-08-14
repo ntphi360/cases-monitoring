@@ -21,6 +21,7 @@ import {
   getNotificationPreview,
   markAllNotificationsRead,
   markNotificationRead,
+  notifyNotificationsUpdated,
 } from "../services/notificationService";
 
 const menuItems = [
@@ -207,6 +208,7 @@ function Header({ breadcrumbs, isMobileOpen, onToggleSidebar }) {
         setNotifications((current) => current.map((entry) =>
           entry.id === item.id ? { ...entry, isRead: true } : entry));
         setUnreadCount((current) => Math.max(0, current - 1));
+        notifyNotificationsUpdated();
       }
       setNotificationOpen(false);
       if (item.caseId) navigate(`/cases/${item.caseId}`);
@@ -224,7 +226,7 @@ function Header({ breadcrumbs, isMobileOpen, onToggleSidebar }) {
       await markAllNotificationsRead(userId);
       setNotifications((current) => current.map((item) => ({ ...item, isRead: true })));
       setUnreadCount(0);
-      window.dispatchEvent(new Event("notifications-updated"));
+      notifyNotificationsUpdated();
     } catch (error) {
       setNotificationError(error.message || "Không thể đánh dấu tất cả đã đọc.");
     } finally {

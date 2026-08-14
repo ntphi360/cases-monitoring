@@ -11,6 +11,7 @@ import {
   getUsers,
 } from "../services/caseService";
 import { sendReminder } from "../services/reminderService";
+import { notifyNotificationsUpdated } from "../services/notificationService";
 import { getDeadlineStatusLabel } from "../utils/caseLabels";
 import "./CasesPage.css";
 import "./AlertsPage.css";
@@ -228,7 +229,7 @@ function ReminderModal({ assignee, caseItem, now, onClose, onSent }) {
       });
       setResult(response.data ?? {});
       if (response.data?.system?.success) {
-        window.dispatchEvent(new Event("notifications-updated"));
+        notifyNotificationsUpdated();
       }
       onSent(response);
     } catch (sendError) {

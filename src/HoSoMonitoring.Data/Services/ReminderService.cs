@@ -56,11 +56,16 @@ public class ReminderService : IReminderService
                 "Hồ sơ chưa có cán bộ xử lý để nhận nhắc nhở.");
         var response = new SendReminderResultDto();
 
-        foreach (var channel in channels)
+        foreach (var channel in channels.OrderBy(channel =>
+                     channel == ReminderChannel.System ? 0 : 1))
         {
             var channelResult = channel switch
             {
-                ReminderChannel.System => SendSystem(caseEntity, assignee, message),
+                ReminderChannel.System => await SendSystemAsync(
+                    caseEntity,
+                    assignee,
+                    message,
+                    cancellationToken),
                 ReminderChannel.Email => await SendEmailAsync(
                     caseEntity,
                     assignee,
@@ -80,7 +85,10 @@ public class ReminderService : IReminderService
                     Success = channelResult.Success,
                     Message = channelResult.Message
                 };
-            AddDelivery(caseEntity, assignee, channel, message, channelResult);
+            if (channel != ReminderChannel.System || channelResult.Success)
+            {
+                AddDelivery(caseEntity, assignee, channel, message, channelResult);
+            }
         }
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -88,19 +96,36 @@ public class ReminderService : IReminderService
         return response;
     }
 
-    private ChannelSendResult SendSystem(
+    private async Task<ChannelSendResult> SendSystemAsync(
         Case caseEntity,
         User assignee,
-        string message)
+        string message,
+        CancellationToken cancellationToken)
     {
-        _unitOfWork.Notifications.Add(new Notification
+        var notification = new Notification
         {
             CaseId = caseEntity.Id,
-            UserId = assignee.Id,
+            UserId = caseEntity.CurrentAssigneeId!.Value,
             Message = message,
             IsRead = false,
             CreatedAt = DateTime.Now
-        });
+        };
+
+        _unitOfWork.Notifications.Add(notification);
+
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            _context.Entry(notification).State = EntityState.Detached;
+            return new ChannelSendResult
+            {
+                Success = false,
+                Message = "Không thể lưu thông báo hệ thống."
+            };
+        }
 
         return new ChannelSendResult
         {

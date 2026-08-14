@@ -4,6 +4,11 @@ let previewCache = null;
 let previewRequest = null;
 let previewUserKey = null;
 
+export function notifyNotificationsUpdated() {
+  previewCache = null;
+  window.dispatchEvent(new Event("notifications-updated"));
+}
+
 function buildUserQuery(userId) {
   return userId ? `?userId=${encodeURIComponent(userId)}` : "";
 }
