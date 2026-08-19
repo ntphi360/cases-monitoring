@@ -24,6 +24,7 @@ public static class MigrationManager
             scope.ServiceProvider.GetRequiredService<UserManager<User>>(),
             scope.ServiceProvider.GetRequiredService<RoleManager<AppRole>>(),
             scope.ServiceProvider.GetRequiredService<IConfiguration>(),
+            app.Environment,
             scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger<IdentitySeeder>())
             .Wait();
 
