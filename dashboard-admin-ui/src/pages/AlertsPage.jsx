@@ -46,8 +46,10 @@ function mapApiAlert(item) {
     departmentName: item.departmentName,
     assigneeName: item.assigneeName,
     currentAssigneeId: item.currentAssigneeId,
+    receivedAt: item.receivedAt,
     dueDate: item.deadline,
     appointmentReturnDate: item.appointmentDate,
+    completedAt: item.completedAt,
     status: item.status,
     deadlineStatus: item.deadlineStatus,
   };
@@ -245,10 +247,19 @@ function ReminderModal({ assignee, caseItem, now, onClose, onSent }) {
       <form onSubmit={handleSubmit}>
         <div className="case-modal__body reminder-form">
           <dl className="reminder-summary">
-            <div><dt>Hồ sơ</dt><dd>{caseItem.caseCode}</dd></div>
-            <div><dt>Người xử lý</dt><dd>{caseItem.assigneeName || "Chưa phân công"}</dd></div>
-            <div><dt>Thời hạn</dt><dd>{formatCountdown(caseItem, now)}</dd></div>
-            <div><dt>Mức cảnh báo</dt><dd><AlertBadge level={alertLevel} /></dd></div>
+            <div className="reminder-summary__column">
+              <div><dt>Hồ sơ</dt><dd>{caseItem.caseCode}</dd></div>
+              <div><dt>Ngày tiếp nhận</dt><dd>{caseItem.receivedAt ? formatDateTime(caseItem.receivedAt) : "Chưa có dữ liệu"}</dd></div>
+              <div><dt>Ngày hẹn trả</dt><dd>{caseItem.appointmentReturnDate ? formatDateTime(caseItem.appointmentReturnDate) : "Chưa có dữ liệu"}</dd></div>
+              <div><dt>Ngày trả thực tế</dt><dd>{caseItem.completedAt ? formatDateTime(caseItem.completedAt) : "Chưa hoàn thành"}</dd></div>
+              <div><dt>Thời hạn hiện tại</dt><dd>{formatCountdown(caseItem, now)}</dd></div>
+            </div>
+            <div className="reminder-summary__column">
+              <div><dt>Người xử lý</dt><dd>{caseItem.assigneeName || "Chưa phân công"}</dd></div>
+              <div><dt>Email người xử lý</dt><dd>{assignee?.email?.trim() || "Chưa có email"}</dd></div>
+              <div><dt>Số điện thoại người xử lý</dt><dd>{assignee?.phoneNumber?.trim() || "Chưa có số điện thoại"}</dd></div>
+              <div><dt>Mức cảnh báo</dt><dd><AlertBadge level={alertLevel} /></dd></div>
+            </div>
           </dl>
 
           <fieldset className="reminder-channels">
