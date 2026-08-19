@@ -34,7 +34,7 @@ builder.Services.AddScoped(typeof(IRepository<,>), typeof(RepositoryBase<,>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IImportService, ImportService>();
 builder.Services.AddScoped<IReminderService, ReminderService>();
-builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+builder.Services.AddHttpClient<IEmailService, ResendEmailService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddHttpClient<IZaloNotificationService, ZaloNotificationService>();
 var administrativeUnit = configuration
@@ -47,11 +47,11 @@ var monitoring = configuration
     .Get<MonitoringOptions>()
     ?? new MonitoringOptions();
 builder.Services.AddSingleton(monitoring);
-var email = configuration
-    .GetSection(EmailOptions.SectionName)
-    .Get<EmailOptions>()
-    ?? new EmailOptions();
-builder.Services.AddSingleton(email);
+var resend = configuration
+    .GetSection(ResendOptions.SectionName)
+    .Get<ResendOptions>()
+    ?? new ResendOptions();
+builder.Services.AddSingleton(resend);
 var zalo = configuration
     .GetSection(ZaloOptions.SectionName)
     .Get<ZaloOptions>()
