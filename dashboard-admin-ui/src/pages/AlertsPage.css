@@ -26,8 +26,15 @@
 .alerts-filter-card { grid-template-columns: minmax(210px, 1.35fr) repeat(3, minmax(145px, 1fr)); }
 .alerts-table-card { margin-top: 12px; }
 .alerts-table { min-width: 1720px; }
-.alerts-table__clickable-row { cursor: pointer; }
-.alerts-table__clickable-row:hover { background: #f8fbff; }
+.alerts-table__clickable-row { background: #fff; cursor: pointer; transition: background-color .15s ease; }
+.alerts-table__clickable-row:hover { background: #f8fafc; }
+.alerts-table__clickable-row.alerts-table__row--overdue { background: #fff1f2; }
+.alerts-table__clickable-row.alerts-table__row--overdue:hover { background: #ffe4e6; }
+.alerts-table__clickable-row.alerts-table__row--near-deadline { background: #fff7ed; }
+.alerts-table__clickable-row.alerts-table__row--near-deadline:hover { background: #ffedd5; }
+.alerts-table__clickable-row.alerts-table__row--due-today { background: #faf5ff; }
+.alerts-table__clickable-row.alerts-table__row--due-today:hover { background: #f3e8ff; }
+.alerts-table .alerts-table__clickable-row > td:last-child { background-color: inherit; transition: background-color .15s ease; }
 .alerts-countdown { font-variant-numeric: tabular-nums; font-weight: 650; }
 .alerts-countdown--upcoming { color: #c2600d; }
 .alerts-countdown--today { color: #654fba; }

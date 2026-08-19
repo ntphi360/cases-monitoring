@@ -90,6 +90,14 @@ function getAlertKey(level) {
   }[level] ?? "upcoming";
 }
 
+function getAlertRowClass(deadlineStatus) {
+  return {
+    2: "alerts-table__row--near-deadline",
+    3: "alerts-table__row--due-today",
+    4: "alerts-table__row--overdue",
+  }[deadlineStatus] ?? "alerts-table__row--default";
+}
+
 function formatCountdown(caseItem, now) {
   if (caseItem.status === 4) return getDeadlineStatusLabel(caseItem.deadlineStatus);
 
@@ -506,7 +514,7 @@ function AlertsPage() {
               {!loading && !loadError && caseList.map((caseItem) => {
                 const alertLevel = getAlertLevel(caseItem.dueDate, now);
                 return (
-                  <tr className="alerts-table__clickable-row" key={caseItem.id} onClick={() => openAlertDetail(caseItem)}>
+                  <tr className={`alerts-table__clickable-row ${getAlertRowClass(caseItem.deadlineStatus)}`} key={caseItem.id} onClick={() => openAlertDetail(caseItem)}>
                     <td className="cases-table__code">{caseItem.caseCode}</td><td className="cases-table__name">{caseItem.caseName}</td><td>{caseItem.procedureFieldName || "—"}</td><td>{caseItem.procedureName || "—"}</td><td>{caseItem.departmentName || "—"}</td><td>{caseItem.assigneeName || "—"}</td><td>{formatDateTime(caseItem.dueDate)}</td><td>{formatDateTime(caseItem.appointmentReturnDate)}</td>
                     <td className={`alerts-countdown alerts-countdown--${getAlertKey(alertLevel)}`}>{formatCountdown(caseItem, now)}</td><td><AlertBadge level={alertLevel} /></td>
                     <td onClick={(event) => event.stopPropagation()}><div className="cases-row-actions"><button aria-label={`Xem hồ sơ ${caseItem.caseCode}`} className="cases-action-button" title="Xem hồ sơ" type="button" onClick={() => openAlertDetail(caseItem)}><Eye size={14} /></button></div></td>
