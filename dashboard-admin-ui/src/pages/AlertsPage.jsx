@@ -443,12 +443,26 @@ function AlertsPage() {
   }
 
   function handleReminderSent(response) {
-    const channelResults = Object.values(response.data ?? {});
-    const allSucceeded = channelResults.length > 0
-      && channelResults.every((item) => item.success);
-    setReminderFeedback(allSucceeded
-      ? "Đã gửi nhắc nhở."
-      : "Đã xử lý nhắc nhở. Một số kênh chưa gửi thành công.");
+    const successfulChannels = Object.entries(response.data ?? {})
+      .filter(([, channelResult]) => channelResult.success)
+      .map(([channel]) => reminderChannels.find(
+        (item) => item.id.toLowerCase() === channel.toLowerCase())?.label)
+      .filter(Boolean);
+
+    if (!successfulChannels.length) {
+      setReminderFeedback("Đã xử lý nhắc nhở. Một số kênh chưa gửi thành công.");
+      return;
+    }
+
+    const channelList = successfulChannels.length === 1
+      ? successfulChannels[0]
+      : `${successfulChannels.slice(0, -1).join(", ")} và ${successfulChannels.at(-1)}`;
+    const assignee = reminderCase?.assigneeName
+      ? ` cho ${reminderCase.assigneeName}`
+      : "";
+    setReminderFeedback(
+      `Đã gửi nhắc nhở hồ sơ ${reminderCase?.caseCode}${assignee} qua ${channelList}.`,
+    );
   }
 
   return (
