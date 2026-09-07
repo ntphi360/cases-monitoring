@@ -1,0 +1,131 @@
+{
+    "version": "V3",
+    "architecture": "Hybrid Mixture-of-Experts",
+    "dataset": "/kaggle/input/datasets/ntphi360/data-ub/Bao_cao_theo_linh_vuc_202608081611.xlsx",
+    "experts": [
+        "PROC",
+        "PRIOR",
+        "CAT_RATIO",
+        "XGB_LOG"
+    ],
+    "selected_meta_model": "STATIC_ENSEMBLE",
+    "tabpfn_enabled": false,
+    "features": [
+        "Tên thủ tục hành chính",
+        "Tên lĩnh vực",
+        "Phòng ban",
+        "Cán bộ xử lý hiện tại",
+        "sla_hours",
+        "sla_log",
+        "accept_hour",
+        "accept_dayofweek",
+        "accept_day",
+        "accept_month",
+        "accept_weekofyear",
+        "is_weekend",
+        "dow_sin",
+        "dow_cos",
+        "hour_sin",
+        "hour_cos",
+        "officer_cases_before_today",
+        "department_cases_before_today",
+        "procedure_cases_before_today",
+        "officer_cases_before_all",
+        "department_cases_before_all",
+        "procedure_cases_before_all",
+        "officer_cases_prev_7d",
+        "department_cases_prev_7d",
+        "procedure_cases_prev_7d",
+        "total_same_day_workload",
+        "total_recent_7d_workload"
+    ],
+    "gate_features": [
+        "Tên thủ tục hành chính",
+        "Tên lĩnh vực",
+        "Phòng ban",
+        "Cán bộ xử lý hiện tại",
+        "sla_hours",
+        "sla_log",
+        "accept_hour",
+        "accept_dayofweek",
+        "accept_day",
+        "accept_month",
+        "accept_weekofyear",
+        "is_weekend",
+        "dow_sin",
+        "dow_cos",
+        "hour_sin",
+        "hour_cos",
+        "officer_cases_before_today",
+        "department_cases_before_today",
+        "procedure_cases_before_today",
+        "officer_cases_before_all",
+        "department_cases_before_all",
+        "procedure_cases_before_all",
+        "officer_cases_prev_7d",
+        "department_cases_prev_7d",
+        "procedure_cases_prev_7d",
+        "total_same_day_workload",
+        "total_recent_7d_workload",
+        "pred_PROC",
+        "pred_PRIOR",
+        "pred_CAT_RATIO",
+        "pred_XGB_LOG",
+        "expert_mean",
+        "expert_std",
+        "expert_min",
+        "expert_max",
+        "expert_range",
+        "prior_to_sla",
+        "proc_to_sla"
+    ],
+    "cat_final_iterations": 250,
+    "xgb_final_iterations": 265,
+    "uncertainty": {
+        "q80": 0.1928750908958358,
+        "q90": 0.4491331484683098,
+        "test_coverage80": 0.6822742474916388,
+        "test_coverage90": 0.8361204013377926
+    },
+    "test_metrics": {
+        "procedure_median": {
+            "MAE": 18.41834541062802,
+            "RMSE": 46.94380923030591,
+            "R2": 0.8711110821149787
+        },
+        "hierarchical_prior": {
+            "MAE": 19.37135924452776,
+            "RMSE": 63.401800741498434,
+            "R2": 0.7648948682677416
+        },
+        "catboost_ratio": {
+            "MAE": 22.08493776928321,
+            "RMSE": 33.07427893299874,
+            "R2": 0.9360206693269132
+        },
+        "xgboost_log": {
+            "MAE": 23.109458982325187,
+            "RMSE": 42.088603442827896,
+            "R2": 0.8963932730864516
+        },
+        "tabpfn_log": null,
+        "v3_final": {
+            "MAE": 17.694234652960287,
+            "RMSE": 40.57395947719588,
+            "R2": 0.9037160929034819
+        }
+    },
+    "rows": {
+        "report": 1438,
+        "clean": 1388,
+        "pretest": 1089,
+        "test": 299,
+        "oof": 432
+    },
+    "final_static_weights": {
+        "PROC": 0.3102116164602798,
+        "PRIOR": 0.6868719501887076,
+        "CAT_RATIO": 0.0009901902285059945,
+        "XGB_LOG": 0.0019262431225067207
+    }
+}
