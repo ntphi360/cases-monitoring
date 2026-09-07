@@ -34,6 +34,9 @@ builder.Services.AddScoped(typeof(IRepository<,>), typeof(RepositoryBase<,>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IImportService, ImportService>();
 builder.Services.AddScoped<IReminderService, ReminderService>();
+builder.Services.Configure<AiPredictionOptions>(
+    configuration.GetSection(AiPredictionOptions.SectionName));
+builder.Services.AddScoped<IAiPredictionService, AiPredictionService>();
 builder.Services.AddHttpClient<IEmailService, ResendEmailService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddHttpClient<IZaloNotificationService, ZaloNotificationService>();
