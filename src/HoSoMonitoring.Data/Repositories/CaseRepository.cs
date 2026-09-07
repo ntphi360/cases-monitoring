@@ -4,6 +4,7 @@ using HoSoMonitoring.Core.Configurations;
 using HoSoMonitoring.Core.Content;
 using HoSoMonitoring.Core.Enums;
 using HoSoMonitoring.Core.Models;
+using HoSoMonitoring.Core.Models.AiPrediction;
 using HoSoMonitoring.Core.Models.Content;
 using HoSoMonitoring.Core.Repositories;
 using HoSoMonitoring.Core.Services;
@@ -62,6 +63,56 @@ namespace HoSoMonitoring.Data.Repositories
                 .FirstOrDefaultAsync(
                     item => item.Id == id,
                     cancellationToken);
+        }
+
+        public async Task<AiPredictionWorkloadDto> GetPredictionWorkloadAsync(
+            int procedureId,
+            int departmentId,
+            int officerId,
+            DateTime receivedAt,
+            CancellationToken cancellationToken = default)
+        {
+            var dayStart = receivedAt.Date;
+            var previousSevenDaysStart = receivedAt.AddDays(-7);
+
+            var workload = await _context.Cases
+                .AsNoTracking()
+                .Where(item =>
+                    item.ReceivedAt < receivedAt
+                    && (item.ProcedureId == procedureId
+                        || item.DepartmentId == departmentId
+                        || item.CurrentAssigneeId == officerId))
+                .GroupBy(_ => 1)
+                .Select(group => new AiPredictionWorkloadDto
+                {
+                    OfficerCasesBeforeToday = group.Count(item =>
+                        item.CurrentAssigneeId == officerId
+                        && item.ReceivedAt >= dayStart),
+                    DepartmentCasesBeforeToday = group.Count(item =>
+                        item.DepartmentId == departmentId
+                        && item.ReceivedAt >= dayStart),
+                    ProcedureCasesBeforeToday = group.Count(item =>
+                        item.ProcedureId == procedureId
+                        && item.ReceivedAt >= dayStart),
+                    OfficerCasesBeforeAll = group.Count(item =>
+                        item.CurrentAssigneeId == officerId),
+                    DepartmentCasesBeforeAll = group.Count(item =>
+                        item.DepartmentId == departmentId),
+                    ProcedureCasesBeforeAll = group.Count(item =>
+                        item.ProcedureId == procedureId),
+                    OfficerCasesPrevious7Days = group.Count(item =>
+                        item.CurrentAssigneeId == officerId
+                        && item.ReceivedAt >= previousSevenDaysStart),
+                    DepartmentCasesPrevious7Days = group.Count(item =>
+                        item.DepartmentId == departmentId
+                        && item.ReceivedAt >= previousSevenDaysStart),
+                    ProcedureCasesPrevious7Days = group.Count(item =>
+                        item.ProcedureId == procedureId
+                        && item.ReceivedAt >= previousSevenDaysStart)
+                })
+                .SingleOrDefaultAsync(cancellationToken);
+
+            return workload ?? new AiPredictionWorkloadDto();
         }
 
         public async Task<List<CaseExportDto>> GetForExportAsync(

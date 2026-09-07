@@ -128,7 +128,11 @@ namespace HoSoMonitoring.Api.Controllers
                     "tên thủ tục hành chính");
                 AddMissingField(missingFields, fieldName, "tên lĩnh vực");
                 AddMissingField(missingFields, departmentName, "tên phòng ban");
-                AddMissingField(missingFields, officerName, "tên cán bộ xử lý");
+                if (!caseEntity.CurrentAssigneeId.HasValue
+                    || string.IsNullOrWhiteSpace(officerName))
+                {
+                    missingFields.Add("tên cán bộ xử lý");
+                }
                 if (caseEntity.ReceivedAt == default)
                 {
                     missingFields.Add("ngày tiếp nhận");
@@ -142,6 +146,14 @@ namespace HoSoMonitoring.Api.Controllers
                     });
                 }
 
+                var workload = await _unitOfWork.Cases
+                    .GetPredictionWorkloadAsync(
+                        caseEntity.ProcedureId,
+                        caseEntity.DepartmentId,
+                        caseEntity.CurrentAssigneeId.GetValueOrDefault(),
+                        caseEntity.ReceivedAt,
+                        cancellationToken);
+
                 var predictionRequest = new AiPredictionRequestDto
                 {
                     ProcedureName = procedureName!,
@@ -149,7 +161,8 @@ namespace HoSoMonitoring.Api.Controllers
                     DepartmentName = departmentName!,
                     OfficerName = officerName!,
                     ReceivedAt = caseEntity.ReceivedAt,
-                    DueAt = caseEntity.Deadline
+                    DueAt = caseEntity.Deadline,
+                    Workload = workload
                 };
 
                 var prediction = await _aiPredictionService.PredictAsync(

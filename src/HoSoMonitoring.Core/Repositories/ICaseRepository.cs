@@ -1,6 +1,7 @@
 ﻿using HoSoMonitoring.Core.Content;
 using HoSoMonitoring.Core.Enums;
 using HoSoMonitoring.Core.Models;
+using HoSoMonitoring.Core.Models.AiPrediction;
 using HoSoMonitoring.Core.Models.Content;
 using HoSoMonitoring.Core.SeedWorks;
 
@@ -28,6 +29,13 @@ namespace HoSoMonitoring.Core.Repositories
 
         Task<Case?> GetDetailByIdAsync(
             int id,
+            CancellationToken cancellationToken = default);
+
+        Task<AiPredictionWorkloadDto> GetPredictionWorkloadAsync(
+            int procedureId,
+            int departmentId,
+            int officerId,
+            DateTime receivedAt,
             CancellationToken cancellationToken = default);
 
         Task<List<CaseExportDto>> GetForExportAsync(

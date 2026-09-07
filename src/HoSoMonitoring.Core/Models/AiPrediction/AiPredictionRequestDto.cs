@@ -13,4 +13,6 @@ public class AiPredictionRequestDto
     public DateTime ReceivedAt { get; set; }
 
     public DateTime? DueAt { get; set; }
+
+    public required AiPredictionWorkloadDto Workload { get; set; }
 }

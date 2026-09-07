@@ -240,6 +240,50 @@ def count_previous_7_days(
     return int(mask.sum())
 
 
+def read_live_workload(payload):
+    workload = payload.get("workload")
+
+    if not isinstance(workload, dict):
+        raise ValueError(
+            "workload là bắt buộc cho prediction."
+        )
+
+    required_keys = [
+        "officerCasesBeforeToday",
+        "departmentCasesBeforeToday",
+        "procedureCasesBeforeToday",
+        "officerCasesBeforeAll",
+        "departmentCasesBeforeAll",
+        "procedureCasesBeforeAll",
+        "officerCasesPrevious7Days",
+        "departmentCasesPrevious7Days",
+        "procedureCasesPrevious7Days",
+    ]
+
+    result = {}
+
+    for key in required_keys:
+        if key not in workload:
+            raise ValueError(
+                f"workload.{key} là bắt buộc."
+            )
+
+        value = workload[key]
+
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, int)
+            or value < 0
+        ):
+            raise ValueError(
+                f"workload.{key} phải là số nguyên không âm."
+            )
+
+        result[key] = value
+
+    return result
+
+
 # ============================================================
 # FEATURE BUILDER
 # ============================================================
@@ -275,6 +319,11 @@ def build_features(payload):
         raise ValueError(
             "receivedAt không hợp lệ."
         )
+
+    # Production workload is supplied by ASP.NET from SQL Server.
+    workload = read_live_workload(
+        payload
+    )
 
     sla_hours = calculate_sla_hours(
         received_at,
@@ -338,68 +387,41 @@ def build_features(payload):
         / 24
     )
 
-    officer_same_day = count_same_day(
-        HISTORY,
-        "Cán bộ xử lý hiện tại",
-        officer,
-        received_at
-    )
+    officer_same_day = workload[
+        "officerCasesBeforeToday"
+    ]
 
-    department_same_day = count_same_day(
-        HISTORY,
-        "Phòng ban",
-        department,
-        received_at
-    )
+    department_same_day = workload[
+        "departmentCasesBeforeToday"
+    ]
 
-    procedure_same_day = count_same_day(
-        HISTORY,
-        "Tên thủ tục hành chính",
-        procedure,
-        received_at
-    )
+    procedure_same_day = workload[
+        "procedureCasesBeforeToday"
+    ]
 
-    officer_all = count_history(
-        HISTORY,
-        "Cán bộ xử lý hiện tại",
-        officer,
-        received_at
-    )
+    officer_all = workload[
+        "officerCasesBeforeAll"
+    ]
 
-    department_all = count_history(
-        HISTORY,
-        "Phòng ban",
-        department,
-        received_at
-    )
+    department_all = workload[
+        "departmentCasesBeforeAll"
+    ]
 
-    procedure_all = count_history(
-        HISTORY,
-        "Tên thủ tục hành chính",
-        procedure,
-        received_at
-    )
+    procedure_all = workload[
+        "procedureCasesBeforeAll"
+    ]
 
-    officer_7d = count_previous_7_days(
-        HISTORY,
-        "Cán bộ xử lý hiện tại",
-        officer,
-        received_at
-    )
+    officer_7d = workload[
+        "officerCasesPrevious7Days"
+    ]
 
-    department_7d = count_previous_7_days(
-        HISTORY,
-        "Phòng ban",
-        department,
-        received_at
-    )
+    department_7d = workload[
+        "departmentCasesPrevious7Days"
+    ]
 
-    procedure_7d = count_previous_7_days(
-        HISTORY,
-        "Tên thủ tục hành chính",
-        procedure,
-        received_at
-    )
+    procedure_7d = workload[
+        "procedureCasesPrevious7Days"
+    ]
 
     row = {
         "Tên thủ tục hành chính":
@@ -1124,7 +1146,7 @@ def create_demo_payload():
         )
     )
 
-    return {
+    payload = {
         "procedureName":
             clean_text(
                 row[
@@ -1157,6 +1179,83 @@ def create_demo_payload():
         "dueAt":
             due.isoformat(),
     }
+
+    # Demo mode intentionally derives workload from the training reference CSV.
+    payload["workload"] = {
+        "officerCasesBeforeToday":
+            count_same_day(
+                HISTORY,
+                "Cán bộ xử lý hiện tại",
+                payload["officerName"],
+                received
+            ),
+
+        "departmentCasesBeforeToday":
+            count_same_day(
+                HISTORY,
+                "Phòng ban",
+                payload["departmentName"],
+                received
+            ),
+
+        "procedureCasesBeforeToday":
+            count_same_day(
+                HISTORY,
+                "Tên thủ tục hành chính",
+                payload["procedureName"],
+                received
+            ),
+
+        "officerCasesBeforeAll":
+            count_history(
+                HISTORY,
+                "Cán bộ xử lý hiện tại",
+                payload["officerName"],
+                received
+            ),
+
+        "departmentCasesBeforeAll":
+            count_history(
+                HISTORY,
+                "Phòng ban",
+                payload["departmentName"],
+                received
+            ),
+
+        "procedureCasesBeforeAll":
+            count_history(
+                HISTORY,
+                "Tên thủ tục hành chính",
+                payload["procedureName"],
+                received
+            ),
+
+        "officerCasesPrevious7Days":
+            count_previous_7_days(
+                HISTORY,
+                "Cán bộ xử lý hiện tại",
+                payload["officerName"],
+                received
+            ),
+
+        "departmentCasesPrevious7Days":
+            count_previous_7_days(
+                HISTORY,
+                "Phòng ban",
+                payload["departmentName"],
+                received
+            ),
+
+        "procedureCasesPrevious7Days":
+            count_previous_7_days(
+                HISTORY,
+                "Tên thủ tục hành chính",
+                payload["procedureName"],
+                received
+            ),
+    }
+
+    return payload
 
 
 # ============================================================
