@@ -30,6 +30,10 @@ export function getCaseById(id) {
   return apiFetch(`/Cases/${id}`);
 }
 
+export function getCaseAiPrediction(id) {
+  return apiFetch(`/Cases/${id}/ai-prediction`);
+}
+
 export function getCaseAssignments(id) {
   return apiFetch(`/CaseAssignments/by-case/${id}`);
 }

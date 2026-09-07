@@ -1,9 +1,10 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 
 import {
   getCaseAssignments,
+  getCaseAiPrediction,
   getCaseById,
   getCaseHistories,
 } from "../services/caseService";
@@ -27,6 +28,56 @@ function formatDateTime(value) {
   if (!year || !month || !day) return String(value);
 
   return `${day}/${month}/${year}${time ? ` ${time.slice(0, 5)}` : ""}`;
+}
+
+function formatHoursValue(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "—";
+
+  return new Intl.NumberFormat("vi-VN", {
+    maximumFractionDigits: 2,
+  }).format(number);
+}
+
+function formatHours(value) {
+  const formatted = formatHoursValue(value);
+  return formatted === "—" ? formatted : `${formatted} giờ`;
+}
+
+function formatPredictionRange(lower, upper) {
+  const formattedLower = formatHoursValue(lower);
+  const formattedUpper = formatHoursValue(upper);
+  if (formattedLower === "—" || formattedUpper === "—") return "—";
+
+  return `${formattedLower} – ${formattedUpper} giờ`;
+}
+
+const predictionRiskMeta = {
+  LOW: { label: "Thấp", tone: "low" },
+  MEDIUM: { label: "Trung bình", tone: "medium" },
+  HIGH: { label: "Cao", tone: "high" },
+  CRITICAL: { label: "Rất cao", tone: "high" },
+  UNKNOWN: { label: "Chưa xác định", tone: "unknown" },
+};
+
+function getPredictionRiskMeta(risk) {
+  return predictionRiskMeta[String(risk || "UNKNOWN").toUpperCase()]
+    ?? predictionRiskMeta.UNKNOWN;
+}
+
+function getPredictionComment(risk) {
+  switch (String(risk || "UNKNOWN").toUpperCase()) {
+    case "LOW":
+      return "Hồ sơ có nguy cơ trễ hạn thấp. Thời gian xử lý dự kiến vẫn trong phạm vi an toàn so với hạn hiện tại.";
+    case "MEDIUM":
+      return "Hồ sơ có nguy cơ trễ hạn trung bình. Nên theo dõi tiến độ và workload của cán bộ phụ trách.";
+    case "HIGH":
+      return "Hồ sơ có nguy cơ trễ hạn cao. Nên ưu tiên xử lý hoặc xem xét điều phối workload.";
+    case "CRITICAL":
+      return "Hồ sơ có nguy cơ trễ hạn rất cao. Nên sớm ưu tiên xử lý và xem xét điều phối workload.";
+    default:
+      return "Chưa đủ thông tin để đánh giá nguy cơ trễ hạn.";
+  }
 }
 
 function StatusBadge({ status }) {
@@ -60,6 +111,11 @@ function CaseDetailPage() {
   const [caseDetail, setCaseDetail] = useState(null);
   const [assignments, setAssignments] = useState([]);
   const [histories, setHistories] = useState([]);
+  const [predictionState, setPredictionState] = useState({
+    caseId: null,
+    data: null,
+    error: "",
+  });
   const [caseLoading, setCaseLoading] = useState(isValidId);
   const [assignmentLoading, setAssignmentLoading] = useState(isValidId);
   const [historyLoading, setHistoryLoading] = useState(isValidId);
@@ -110,6 +166,22 @@ function CaseDetailPage() {
         if (isCurrent) setHistoryLoading(false);
       });
 
+    getCaseAiPrediction(caseId)
+      .then((data) => {
+        if (isCurrent) {
+          setPredictionState({ caseId, data, error: "" });
+        }
+      })
+      .catch(() => {
+        if (isCurrent) {
+          setPredictionState({
+            caseId,
+            data: null,
+            error: "Không thể tải dự đoán AI lúc này.",
+          });
+        }
+      });
+
     return () => {
       isCurrent = false;
     };
@@ -152,6 +224,11 @@ function CaseDetailPage() {
     ["Ngày hoàn tất", formatDateTime(caseDetail.completedAt)],
     ["Số ngày xử lý", caseDetail.processingDays == null ? "—" : `${caseDetail.processingDays} ngày`],
   ];
+  const predictionIsCurrent = predictionState.caseId === caseId;
+  const prediction = predictionIsCurrent ? predictionState.data : null;
+  const predictionError = predictionIsCurrent ? predictionState.error : "";
+  const predictionLoading = isValidId && !predictionIsCurrent;
+  const predictionRisk = getPredictionRiskMeta(prediction?.deadlineRisk);
 
   return (
     <section className="cases-page case-detail-page">
@@ -182,6 +259,58 @@ function CaseDetailPage() {
             <dd><DeadlineBadge status={caseDetail.deadlineStatus} /></dd>
           </div>
         </dl>
+      </article>
+
+      <article className="case-detail-card case-ai-card" aria-labelledby="case-ai-title">
+        <div className="case-ai-card__heading">
+          <span className="case-ai-card__icon" aria-hidden="true">
+            <Sparkles size={17} />
+          </span>
+          <div>
+            <h2 id="case-ai-title">Dự đoán AI</h2>
+            <p>Ước tính dựa trên thông tin hồ sơ và workload tại thời điểm tiếp nhận.</p>
+          </div>
+        </div>
+
+        {predictionLoading ? (
+          <SectionMessage>Đang phân tích dữ liệu hồ sơ...</SectionMessage>
+        ) : predictionError || !prediction ? (
+          <SectionMessage error>{predictionError || "Không thể tải dự đoán AI lúc này."}</SectionMessage>
+        ) : (
+          <div className="case-ai-card__content">
+            <dl className="case-ai-metrics">
+              <div>
+                <dt>Thời gian xử lý dự đoán</dt>
+                <dd>{formatHours(prediction.predictedProcessingHours)}</dd>
+              </div>
+              <div>
+                <dt>Hoàn tất dự kiến</dt>
+                <dd>{formatDateTime(prediction.predictedCompletionTime)}</dd>
+              </div>
+              <div>
+                <dt>Khoảng dự đoán P80</dt>
+                <dd>{formatPredictionRange(prediction.predictionLower80, prediction.predictionUpper80)}</dd>
+              </div>
+              <div>
+                <dt>Khoảng dự đoán P90</dt>
+                <dd>{formatPredictionRange(prediction.predictionLower90, prediction.predictionUpper90)}</dd>
+              </div>
+              <div>
+                <dt>Nguy cơ trễ hạn</dt>
+                <dd>
+                  <span className={`case-ai-risk case-ai-risk--${predictionRisk.tone}`}>
+                    {predictionRisk.label}
+                  </span>
+                </dd>
+              </div>
+            </dl>
+
+            <div className="case-ai-comment">
+              <strong>Nhận xét AI</strong>
+              <p>{getPredictionComment(prediction.deadlineRisk)}</p>
+            </div>
+          </div>
+        )}
       </article>
 
       <article className="case-detail-card">
