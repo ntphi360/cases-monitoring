@@ -26,7 +26,9 @@ namespace HoSoMonitoring.Core.Repositories
 
         Task<bool> ExternalCaseCodeExistsAsync(string externalCaseCode);
 
-        Task<Case?> GetDetailByIdAsync(int id);
+        Task<Case?> GetDetailByIdAsync(
+            int id,
+            CancellationToken cancellationToken = default);
 
         Task<List<CaseExportDto>> GetForExportAsync(
             string? keyword,

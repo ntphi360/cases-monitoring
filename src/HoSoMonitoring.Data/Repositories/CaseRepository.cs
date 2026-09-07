@@ -49,7 +49,9 @@ namespace HoSoMonitoring.Data.Repositories
                 item.ExternalCaseCode == externalCaseCode);
         }
 
-        public Task<Case?> GetDetailByIdAsync(int id)
+        public Task<Case?> GetDetailByIdAsync(
+            int id,
+            CancellationToken cancellationToken = default)
         {
             return _context.Cases
                 .AsNoTracking()
@@ -57,7 +59,9 @@ namespace HoSoMonitoring.Data.Repositories
                     .ThenInclude(procedure => procedure!.ProcedureField)
                 .Include(item => item.Department)
                 .Include(item => item.CurrentAssignee)
-                .FirstOrDefaultAsync(item => item.Id == id);
+                .FirstOrDefaultAsync(
+                    item => item.Id == id,
+                    cancellationToken);
         }
 
         public async Task<List<CaseExportDto>> GetForExportAsync(

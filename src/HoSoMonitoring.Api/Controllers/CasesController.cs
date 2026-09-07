@@ -3,6 +3,7 @@ using HoSoMonitoring.Core.Content;
 using HoSoMonitoring.Core.Configurations;
 using HoSoMonitoring.Core.Enums;
 using HoSoMonitoring.Core.Models;
+using HoSoMonitoring.Core.Models.AiPrediction;
 using HoSoMonitoring.Core.Models.Content;
 using HoSoMonitoring.Core.SeedWorks;
 using HoSoMonitoring.Core.Services;
@@ -26,6 +27,8 @@ namespace HoSoMonitoring.Api.Controllers
         private readonly ICaseCodeGenerator _caseCodeGenerator;
         private readonly AdministrativeUnitOptions _administrativeUnit;
         private readonly MonitoringOptions _monitoring;
+        private readonly IAiPredictionService _aiPredictionService;
+        private readonly ILogger<CasesController> _logger;
 
         public CasesController(
             IUnitOfWork unitOfWork,
@@ -33,7 +36,9 @@ namespace HoSoMonitoring.Api.Controllers
             ICaseCodeParser caseCodeParser,
             ICaseCodeGenerator caseCodeGenerator,
             AdministrativeUnitOptions administrativeUnit,
-            MonitoringOptions monitoring)
+            MonitoringOptions monitoring,
+            IAiPredictionService aiPredictionService,
+            ILogger<CasesController> logger)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
@@ -41,6 +46,8 @@ namespace HoSoMonitoring.Api.Controllers
             _caseCodeGenerator = caseCodeGenerator;
             _administrativeUnit = administrativeUnit;
             _monitoring = monitoring;
+            _aiPredictionService = aiPredictionService;
+            _logger = logger;
         }
 
         // GET /api/cases/paging?pageIndex=1&pageSize=10
@@ -91,6 +98,83 @@ namespace HoSoMonitoring.Api.Controllers
             ApplyCaseCodeInfo(result);
 
             return Ok(result);
+        }
+
+        // GET /api/cases/1/ai-prediction
+        [HttpGet("{id:int}/ai-prediction")]
+        public async Task<ActionResult<AiPredictionResultDto>> GetAiPrediction(
+            int id,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var caseEntity = await _unitOfWork.Cases.GetDetailByIdAsync(
+                    id,
+                    cancellationToken);
+                if (caseEntity == null)
+                {
+                    return NotFound(new { message = "Không tìm thấy hồ sơ." });
+                }
+
+                var missingFields = new List<string>();
+                var procedureName = caseEntity.Procedure?.Name;
+                var fieldName = caseEntity.Procedure?.ProcedureField?.Name;
+                var departmentName = caseEntity.Department?.Name;
+                var officerName = caseEntity.CurrentAssignee?.FullName;
+
+                AddMissingField(
+                    missingFields,
+                    procedureName,
+                    "tên thủ tục hành chính");
+                AddMissingField(missingFields, fieldName, "tên lĩnh vực");
+                AddMissingField(missingFields, departmentName, "tên phòng ban");
+                AddMissingField(missingFields, officerName, "tên cán bộ xử lý");
+                if (caseEntity.ReceivedAt == default)
+                {
+                    missingFields.Add("ngày tiếp nhận");
+                }
+
+                if (missingFields.Count > 0)
+                {
+                    return BadRequest(new
+                    {
+                        message = $"Hồ sơ thiếu thông tin bắt buộc để dự đoán: {string.Join(", ", missingFields)}."
+                    });
+                }
+
+                var predictionRequest = new AiPredictionRequestDto
+                {
+                    ProcedureName = procedureName!,
+                    FieldName = fieldName!,
+                    DepartmentName = departmentName!,
+                    OfficerName = officerName!,
+                    ReceivedAt = caseEntity.ReceivedAt,
+                    DueAt = caseEntity.Deadline
+                };
+
+                var prediction = await _aiPredictionService.PredictAsync(
+                    predictionRequest,
+                    cancellationToken);
+                return Ok(prediction);
+            }
+            catch (OperationCanceledException) when (
+                cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(
+                    exception,
+                    "Không thể tạo AI prediction cho hồ sơ {CaseId}.",
+                    id);
+                return StatusCode(
+                    StatusCodes.Status500InternalServerError,
+                    new
+                    {
+                        message = "Dịch vụ dự đoán hiện không khả dụng. Vui lòng thử lại sau."
+                    });
+            }
         }
 
         // GET /api/cases/overdue?count=10
@@ -325,6 +409,17 @@ namespace HoSoMonitoring.Api.Controllers
                 caseEntity,
                 DateTime.Now,
                 _monitoring.WarningThresholdDays);
+        }
+
+        private static void AddMissingField(
+            ICollection<string> missingFields,
+            string? value,
+            string fieldName)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                missingFields.Add(fieldName);
+            }
         }
     }
 }
