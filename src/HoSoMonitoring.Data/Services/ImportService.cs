@@ -13,6 +13,7 @@ namespace HoSoMonitoring.Data.Services;
 
 public class ImportService : IImportService
 {
+    private const int MaxExcelHeaderScanRows = 15;
     private const string ExternalCaseCodeHeader = "Số hồ sơ";
     private const string ProcedureNameHeader = "Tên thủ tục hành chính";
     private const string ProcedureFieldNameHeader = "Tên lĩnh vực";
@@ -34,14 +35,14 @@ public class ImportService : IImportService
     [
         ExternalCaseCodeHeader,
         ProcedureNameHeader,
-        ApplicantNameHeader,
         ReceivedAtHeader
     ];
 
     private static readonly string[] SupportedDateFormats =
     [
         "dd/MM/yyyy",
-        "dd/MM/yyyy HH:mm"
+        "dd/MM/yyyy HH:mm",
+        "dd/MM/yyyy HH:mm:ss"
     ];
 
     private readonly HoSoMonitoringContext _context;
@@ -427,14 +428,7 @@ public class ImportService : IImportService
             using var workbook = new XLWorkbook(stream);
             var worksheet = workbook.Worksheets.FirstOrDefault()
                 ?? throw new ImportFileValidationException("File Excel không có worksheet.");
-            var headerRow = worksheet.FirstRowUsed()
-                ?? throw new ImportFileValidationException("File Excel không có dữ liệu.");
-            var lastHeaderCell = headerRow.LastCellUsed()
-                ?? throw new ImportFileValidationException("File Excel không có header.");
-
-            var headers = Enumerable.Range(1, lastHeaderCell.Address.ColumnNumber)
-                .Select(column => headerRow.Cell(column).GetString());
-            var headerMap = BuildHeaderMap(headers, startingColumnIndex: 1);
+            var (headerRow, headerMap) = FindExcelHeader(worksheet);
             var lastRowNumber = worksheet.LastRowUsed()?.RowNumber()
                 ?? headerRow.RowNumber();
             var rows = new List<ImportRow>();
@@ -468,6 +462,38 @@ public class ImportService : IImportService
             throw new ImportFileValidationException(
                 $"Không thể đọc file Excel: {exception.Message}");
         }
+    }
+
+    private static (IXLRow HeaderRow, Dictionary<string, int> HeaderMap)
+        FindExcelHeader(IXLWorksheet worksheet)
+    {
+        var lastCell = worksheet.LastCellUsed()
+            ?? throw new ImportFileValidationException("File Excel không có dữ liệu.");
+        var lastColumnNumber = lastCell.Address.ColumnNumber;
+        var lastRowToScan = Math.Min(
+            MaxExcelHeaderScanRows,
+            lastCell.Address.RowNumber);
+
+        for (var rowNumber = 1; rowNumber <= lastRowToScan; rowNumber++)
+        {
+            var row = worksheet.Row(rowNumber);
+            var headers = Enumerable.Range(1, lastColumnNumber)
+                .Select(column => row.Cell(column).GetString());
+            var headerMap = BuildHeaderMap(
+                headers,
+                startingColumnIndex: 1,
+                validateRequiredHeaders: false);
+
+            if (RequiredHeaders.All(header =>
+                    headerMap.ContainsKey(NormalizeText(header))))
+            {
+                return (row, headerMap);
+            }
+        }
+
+        throw new ImportFileValidationException(
+            $"Không tìm thấy dòng header hợp lệ trong {MaxExcelHeaderScanRows} dòng đầu. "
+            + $"Header bắt buộc: {string.Join(", ", RequiredHeaders)}.");
     }
 
     private static async Task<List<ImportRow>> ReadCsvRowsAsync(
@@ -526,7 +552,8 @@ public class ImportService : IImportService
 
     private static Dictionary<string, int> BuildHeaderMap(
         IEnumerable<string> headers,
-        int startingColumnIndex = 0)
+        int startingColumnIndex = 0,
+        bool validateRequiredHeaders = true)
     {
         var headerMap = new Dictionary<string, int>(StringComparer.Ordinal);
         var columnIndex = startingColumnIndex;
@@ -548,6 +575,12 @@ public class ImportService : IImportService
         AddHeaderAlias(headerMap, ReceivedAtHeader, "Ngày nhận");
         AddHeaderAlias(headerMap, CompletedAtHeader, "Ngày hoàn tất");
         AddHeaderAlias(headerMap, AssigneeNameHeader, "Người xử lý");
+        AddHeaderAlias(headerMap, StatusHeader, "Trạng thái hồ sơ");
+
+        if (!validateRequiredHeaders)
+        {
+            return headerMap;
+        }
 
         var missingHeaders = RequiredHeaders
             .Where(header => !headerMap.ContainsKey(NormalizeText(header)))
@@ -672,7 +705,9 @@ public class ImportService : IImportService
             "TIẾP NHẬN" or "MỚI TIẾP NHẬN" => CaseStatus.Received,
             "ĐANG XỬ LÝ" or "ĐANG GIẢI QUYẾT" => CaseStatus.InProgress,
             "CHỜ XỬ LÝ" or "TẠM DỪNG" => CaseStatus.Pending,
-            "HOÀN THÀNH" or "ĐÃ HOÀN THÀNH" => CaseStatus.Completed,
+            "CHỜ BỔ SUNG" => CaseStatus.Pending,
+            "HOÀN THÀNH" or "ĐÃ HOÀN THÀNH" or "ĐÃ TRẢ KẾT QUẢ" => CaseStatus.Completed,
+            "CHỜ TIẾP NHẬN" => CaseStatus.Received,
             "QUÁ HẠN" => CaseStatus.Overdue,
             "HỦY" or "ĐÃ HỦY" => CaseStatus.Cancelled,
             _ => 0
