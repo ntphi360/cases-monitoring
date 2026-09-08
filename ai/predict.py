@@ -325,14 +325,24 @@ def build_features(payload):
         payload
     )
 
-    sla_hours = calculate_sla_hours(
+    raw_sla_hours = calculate_sla_hours(
         received_at,
         due_at
+    )
+
+    # Keep the real SLA separately for deadline risk.
+    # The model may still need a numeric fallback when the real SLA is missing/invalid.
+    risk_sla_hours = (
+        None
+        if pd.isna(raw_sla_hours)
+        else float(raw_sla_hours)
     )
 
     numeric_medians = PRIORS[
         "numeric_medians"
     ]
+
+    sla_hours = raw_sla_hours
 
     if pd.isna(sla_hours):
         sla_hours = float(
@@ -531,7 +541,8 @@ def build_features(payload):
     return (
         frame,
         received_at,
-        float(sla_hours)
+        float(sla_hours),
+        risk_sla_hours
     )
 
 
@@ -950,26 +961,40 @@ def build_uncertainty(prediction):
         "upper90": float(upper90),
     }
 
-
 def calculate_risk(
     prediction,
     upper80,
     upper90,
     sla_hours
 ):
-    if sla_hours is None:
+    if (
+        sla_hours is None
+        or not np.isfinite(sla_hours)
+        or sla_hours <= 0
+    ):
         return "UNKNOWN"
 
-    if prediction >= sla_hours:
+    prediction_ratio = prediction / sla_hours
+    upper80_ratio = upper80 / sla_hours
+    upper90_ratio = upper90 / sla_hours
+
+    risk_score = (
+        0.50 * prediction_ratio
+        + 0.30 * upper80_ratio
+        + 0.20 * upper90_ratio
+    )
+
+    if risk_score >= 1.00:
         return "CRITICAL"
 
-    if upper90 >= sla_hours:
+    if risk_score >= 0.80:
         return "HIGH"
 
-    if upper80 >= sla_hours:
+    if risk_score >= 0.55:
         return "MEDIUM"
 
     return "LOW"
+
 
 
 # ============================================================
@@ -980,7 +1005,8 @@ def predict(payload):
     (
         frame,
         received_at,
-        sla_hours
+        sla_hours,
+        risk_sla_hours
     ) = build_features(
         payload
     )
@@ -1055,7 +1081,17 @@ def predict(payload):
         final_prediction,
         intervals["upper80"],
         intervals["upper90"],
-        sla_hours
+        risk_sla_hours
+    )
+
+    print(
+        "RISK DEBUG: "
+        f"prediction={final_prediction:.2f}, "
+        f"upper80={intervals['upper80']:.2f}, "
+        f"upper90={intervals['upper90']:.2f}, "
+        f"sla_hours={risk_sla_hours if risk_sla_hours is not None else 'UNKNOWN'}, "
+        f"risk={risk}",
+        file=sys.stderr
     )
 
     return {
@@ -1264,13 +1300,14 @@ def create_demo_payload():
 
 if __name__ == "__main__":
     try:
+        # ========================================================
+        # DEMO MODE
+        # ========================================================
         if (
             len(sys.argv) > 1
             and sys.argv[1] == "--demo"
         ):
-            input_payload = (
-                create_demo_payload()
-            )
+            input_payload = create_demo_payload()
 
             print(
                 "INPUT:",
@@ -1282,32 +1319,67 @@ if __name__ == "__main__":
                 file=sys.stderr
             )
 
+        # ========================================================
+        # PRODUCTION MODE - JSON FROM ASP.NET STDIN
+        # ========================================================
         else:
             raw = sys.stdin.read()
 
-            if not raw.strip():
-                raise ValueError(
-                    "Không có JSON input. "
-                    "Chạy: python predict.py --demo"
-                )
-
-            input_payload = json.loads(
-                raw
+            # Debug tạm thời: stderr không làm bẩn stdout JSON.
+            print(
+                f"STDIN RAW: {raw!r}",
+                file=sys.stderr
             )
 
-        result = predict(
-            input_payload
-        )
+            if raw is None or not raw.strip():
+                raise ValueError(
+                    "ASP.NET không gửi JSON input sang predict.py."
+                )
 
+            # Loại bỏ UTF-8 BOM và whitespace đầu/cuối nếu có.
+            raw = raw.lstrip("\ufeff").strip()
+
+            try:
+                input_payload = json.loads(raw)
+            except json.JSONDecodeError as error:
+                print(
+                    f"JSON DECODE ERROR: {error}",
+                    file=sys.stderr
+                )
+                print(
+                    f"INVALID JSON: {raw!r}",
+                    file=sys.stderr
+                )
+                raise ValueError(
+                    f"JSON input không hợp lệ: {error}"
+                ) from error
+
+            if not isinstance(input_payload, dict):
+                raise ValueError(
+                    "JSON input phải là một object."
+                )
+
+        # ========================================================
+        # PREDICT
+        # ========================================================
+        result = predict(input_payload)
+
+        # stdout chỉ chứa JSON để ASP.NET deserialize.
         print(
             json.dumps(
                 result,
-                ensure_ascii=False,
-                indent=2
+                ensure_ascii=False
             )
         )
 
     except Exception as error:
+        # Chi tiết debug chỉ ghi stderr.
+        print(
+            f"AI PREDICTION ERROR: {type(error).__name__}: {error}",
+            file=sys.stderr
+        )
+
+        # stdout vẫn trả JSON error để ASP.NET đọc được.
         print(
             json.dumps(
                 {
