@@ -16,11 +16,18 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using System.Text;
-using HoSoMonitoring.Api.Services.Ai;
-
-
 
 var builder = WebApplication.CreateBuilder(args);
+
+Console.WriteLine($"Environment: {builder.Environment.EnvironmentName}");
+
+var geminiKey = builder.Configuration["GEMINI_API_KEY"];
+
+Console.WriteLine(
+    string.IsNullOrWhiteSpace(geminiKey)
+        ? "GEMINI KEY = NULL"
+        : "GEMINI KEY = LOADED"
+);
 
 // Connection string 
 var configuration = builder.Configuration;

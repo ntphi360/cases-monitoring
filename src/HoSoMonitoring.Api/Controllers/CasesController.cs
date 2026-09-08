@@ -1,15 +1,17 @@
 ﻿using AutoMapper;
-using HoSoMonitoring.Core.Content;
+using HoSoMonitoring.Api.Services;
+using HoSoMonitoring.Api.Services.Ai;
 using HoSoMonitoring.Core.Configurations;
+using HoSoMonitoring.Core.Content;
 using HoSoMonitoring.Core.Enums;
 using HoSoMonitoring.Core.Models;
 using HoSoMonitoring.Core.Models.AiPrediction;
 using HoSoMonitoring.Core.Models.Content;
 using HoSoMonitoring.Core.SeedWorks;
 using HoSoMonitoring.Core.Services;
-using HoSoMonitoring.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 
 namespace HoSoMonitoring.Api.Controllers
 {
@@ -29,6 +31,7 @@ namespace HoSoMonitoring.Api.Controllers
         private readonly MonitoringOptions _monitoring;
         private readonly IAiPredictionService _aiPredictionService;
         private readonly ILogger<CasesController> _logger;
+        private readonly IAiInsightService _aiInsightService;
 
         public CasesController(
             IUnitOfWork unitOfWork,
@@ -38,7 +41,8 @@ namespace HoSoMonitoring.Api.Controllers
             AdministrativeUnitOptions administrativeUnit,
             MonitoringOptions monitoring,
             IAiPredictionService aiPredictionService,
-            ILogger<CasesController> logger)
+            ILogger<CasesController> logger,
+            IAiInsightService aiInsightService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
@@ -48,6 +52,7 @@ namespace HoSoMonitoring.Api.Controllers
             _monitoring = monitoring;
             _aiPredictionService = aiPredictionService;
             _logger = logger;
+            _aiInsightService = aiInsightService;
         }
 
         // GET /api/cases/paging?pageIndex=1&pageSize=10
@@ -434,5 +439,20 @@ namespace HoSoMonitoring.Api.Controllers
                 missingFields.Add(fieldName);
             }
         }
+
+        [AllowAnonymous]
+        [HttpGet("test-gemini")]
+        public async Task<IActionResult> TestGemini(
+        CancellationToken cancellationToken)
+        {
+            var result = await _aiInsightService.TestAsync(
+                cancellationToken);
+
+            return Ok(new
+            {
+                result
+            });
+        }
     }
+
 }
