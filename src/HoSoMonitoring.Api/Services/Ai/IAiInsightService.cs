@@ -7,8 +7,4 @@ public interface IAiInsightService
     Task<string> GenerateInsightAsync(
         AiPredictionResultDto prediction,
         CancellationToken cancellationToken = default);
-
-    // test
-    Task<string> TestAsync(
-    CancellationToken cancellationToken = default);
 }

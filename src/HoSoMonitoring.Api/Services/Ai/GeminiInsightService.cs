@@ -9,18 +9,15 @@ public class GeminiInsightService : IAiInsightService
 {
     private readonly HttpClient _httpClient;
     private readonly GeminiOptions _options;
-    private readonly ILogger<GeminiInsightService> _logger;
     private readonly IConfiguration _configuration;
 
     public GeminiInsightService(
       HttpClient httpClient,
       IOptions<GeminiOptions> options,
-      ILogger<GeminiInsightService> logger,
       IConfiguration configuration)
     {
         _httpClient = httpClient;
         _options = options.Value;
-        _logger = logger;
         _configuration = configuration;
     }
 
@@ -90,11 +87,6 @@ public class GeminiInsightService : IAiInsightService
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError(
-                    "Gemini API lỗi {StatusCode}: {Response}",
-                    response.StatusCode,
-                    responseJson);
-
                 throw new InvalidOperationException(
                     $"Gemini API trả về lỗi {(int)response.StatusCode}.");
             }
@@ -109,10 +101,6 @@ public class GeminiInsightService : IAiInsightService
         }
         catch (HttpRequestException exception)
         {
-            _logger.LogError(
-                exception,
-                "Không thể kết nối Gemini API.");
-
             throw new InvalidOperationException(
                 "Không thể kết nối Gemini API.",
                 exception);
@@ -220,64 +208,4 @@ public class GeminiInsightService : IAiInsightService
             "Gemini không trả về nội dung text.");
     }
 
-    // test 
-    public async Task<string> TestAsync(
-    CancellationToken cancellationToken = default)
-    {
-        var apiKey = _configuration["GEMINI_API_KEY"];
-
-        if (string.IsNullOrWhiteSpace(apiKey))
-        {
-            throw new InvalidOperationException(
-                "Chưa cấu hình GEMINI_API_KEY.");
-        }
-
-        var requestBody = new
-        {
-            contents = new[]
-            {
-            new
-            {
-                parts = new[]
-                {
-                    new
-                    {
-                        text = "Chỉ trả lời đúng câu: Gemini kết nối thành công."
-                    }
-                }
-            }
-        }
-        };
-
-        var requestUrl =
-            $"https://generativelanguage.googleapis.com/v1beta/models/" +
-            $"{_options.Model}:generateContent";
-
-        using var request = new HttpRequestMessage(
-            HttpMethod.Post,
-            requestUrl);
-
-        request.Headers.Add(
-            "x-goog-api-key",
-            apiKey);
-
-        request.Content = JsonContent.Create(
-            requestBody);
-
-        using var response = await _httpClient.SendAsync(
-            request,
-            cancellationToken);
-
-        var responseJson =
-            await response.Content.ReadAsStringAsync(
-                cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException(
-                $"Gemini API lỗi {(int)response.StatusCode}: {responseJson}");
-        }
-
-        return ReadInsight(responseJson);
-    }
 }

@@ -65,21 +65,6 @@ function getPredictionRiskMeta(risk) {
     ?? predictionRiskMeta.UNKNOWN;
 }
 
-function getPredictionComment(risk) {
-  switch (String(risk || "UNKNOWN").toUpperCase()) {
-    case "LOW":
-      return "Hồ sơ có nguy cơ trễ hạn thấp. Thời gian xử lý dự kiến vẫn trong phạm vi an toàn so với hạn hiện tại.";
-    case "MEDIUM":
-      return "Hồ sơ có nguy cơ trễ hạn trung bình. Nên theo dõi tiến độ và workload của cán bộ phụ trách.";
-    case "HIGH":
-      return "Hồ sơ có nguy cơ trễ hạn cao. Nên ưu tiên xử lý hoặc xem xét điều phối workload.";
-    case "CRITICAL":
-      return "Hồ sơ có nguy cơ trễ hạn rất cao. Nên sớm ưu tiên xử lý và xem xét điều phối workload.";
-    default:
-      return "Chưa đủ thông tin để đánh giá nguy cơ trễ hạn.";
-  }
-}
-
 function StatusBadge({ status }) {
   return (
     <span className={`cases-status-badge cases-status-badge--${getCaseStatusBadgeKey(status)}`}>
@@ -307,7 +292,7 @@ function CaseDetailPage() {
 
             <div className="case-ai-comment">
               <strong>Nhận xét AI</strong>
-              <p>{getPredictionComment(prediction.deadlineRisk)}</p>
+              <p>{prediction.aiInsight?.trim() || "Chưa có nhận xét AI."}</p>
             </div>
           </div>
         )}

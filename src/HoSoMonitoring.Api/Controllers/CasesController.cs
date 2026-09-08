@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using HoSoMonitoring.Api.Models.AiPrediction;
 using HoSoMonitoring.Api.Services;
 using HoSoMonitoring.Api.Services.Ai;
 using HoSoMonitoring.Core.Configurations;
@@ -107,7 +108,7 @@ namespace HoSoMonitoring.Api.Controllers
 
         // GET /api/cases/1/ai-prediction
         [HttpGet("{id:int}/ai-prediction")]
-        public async Task<ActionResult<AiPredictionResultDto>> GetAiPrediction(
+        public async Task<ActionResult<CaseAiPredictionResponseDto>> GetAiPrediction(
             int id,
             CancellationToken cancellationToken)
         {
@@ -173,7 +174,31 @@ namespace HoSoMonitoring.Api.Controllers
                 var prediction = await _aiPredictionService.PredictAsync(
                     predictionRequest,
                     cancellationToken);
-                return Ok(prediction);
+
+                string aiInsight;
+
+                try
+                {
+                    aiInsight = await _aiInsightService.GenerateInsightAsync(
+                        prediction,
+                        cancellationToken);
+                }
+                catch (Exception exception)
+                {
+                    _logger.LogWarning(
+                        exception,
+                        "Không thể tạo Gemini insight cho hồ sơ {CaseId}.",
+                        id);
+
+                    aiInsight =
+                        "Đã có kết quả dự đoán nhưng hiện chưa thể tạo nhận xét AI.";
+                }
+
+                var response = CaseAiPredictionResponseDto.FromPrediction(
+                    prediction,
+                    aiInsight);
+
+                return Ok(response);
             }
             catch (OperationCanceledException) when (
                 cancellationToken.IsCancellationRequested)
@@ -438,20 +463,6 @@ namespace HoSoMonitoring.Api.Controllers
             {
                 missingFields.Add(fieldName);
             }
-        }
-
-        [AllowAnonymous]
-        [HttpGet("test-gemini")]
-        public async Task<IActionResult> TestGemini(
-        CancellationToken cancellationToken)
-        {
-            var result = await _aiInsightService.TestAsync(
-                cancellationToken);
-
-            return Ok(new
-            {
-                result
-            });
         }
     }
 
