@@ -1,20 +1,22 @@
 using HoSoMonitoring.Api;
-using HoSoMonitoring.Data;
-using Microsoft.EntityFrameworkCore;
-using HoSoMonitoring.Core.SeedWorks;
-using HoSoMonitoring.Data.SeedWorks;
-using HoSoMonitoring.Core.Repositories;
-using HoSoMonitoring.Data.Repositories;
-using HoSoMonitoring.Core.Models.Content;
-using HoSoMonitoring.Core.Services;
-using HoSoMonitoring.Data.Services;
+using HoSoMonitoring.Api.Services.Ai;
 using HoSoMonitoring.Core.Configurations;
 using HoSoMonitoring.Core.Content;
+using HoSoMonitoring.Core.Models.Content;
+using HoSoMonitoring.Core.Repositories;
+using HoSoMonitoring.Core.SeedWorks;
+using HoSoMonitoring.Core.Services;
+using HoSoMonitoring.Data;
+using HoSoMonitoring.Data.Repositories;
+using HoSoMonitoring.Data.SeedWorks;
+using HoSoMonitoring.Data.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using System.Text;
+using HoSoMonitoring.Api.Services.Ai;
 
 
 
@@ -114,6 +116,19 @@ builder.Services.AddAuthentication(options =>
             }
         };
     });
+
+// LLM-AI-GEMINI
+builder.Services.Configure<GeminiOptions>(
+    builder.Configuration.GetSection("Gemini"));
+
+builder.Services.AddHttpClient<
+    IAiInsightService,
+    GeminiInsightService>(client =>
+    {
+        client.Timeout = TimeSpan.FromSeconds(15);
+    });
+
+
 builder.Services.AddAuthorization();
 builder.Services.AddSingleton<ICaseCodeParser, CaseCodeParser>();
 builder.Services.AddScoped<ICaseCodeGenerator, CaseCodeGenerator>();
