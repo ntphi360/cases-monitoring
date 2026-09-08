@@ -1,5 +1,7 @@
 import { apiFetch } from "./api";
 
+const pendingAiPredictionRequests = new Map();
+
 export async function getCases(params = {}) {
   const query = new URLSearchParams();
   const supportedParams = [
@@ -31,7 +33,19 @@ export function getCaseById(id) {
 }
 
 export function getCaseAiPrediction(id) {
-  return apiFetch(`/Cases/${id}/ai-prediction`);
+  const requestKey = String(id);
+  const pendingRequest = pendingAiPredictionRequests.get(requestKey);
+
+  if (pendingRequest) return pendingRequest;
+
+  const request = apiFetch(`/Cases/${id}/ai-prediction`)
+    .finally(() => {
+      pendingAiPredictionRequests.delete(requestKey);
+    });
+
+  pendingAiPredictionRequests.set(requestKey, request);
+
+  return request;
 }
 
 export function getCaseAssignments(id) {

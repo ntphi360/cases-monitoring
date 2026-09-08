@@ -191,7 +191,7 @@ namespace HoSoMonitoring.Api.Controllers
                         id);
 
                     aiInsight =
-                        "Đã có kết quả dự đoán nhưng hiện chưa thể tạo nhận xét AI.";
+                        "Đã có kết quả dự đoán, nhưng hệ thống tạm thời chưa thể tạo phân tích chi tiết.";
                 }
 
                 var response = CaseAiPredictionResponseDto.FromPrediction(

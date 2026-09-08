@@ -43,6 +43,7 @@ builder.Services.AddScoped(typeof(IRepository<,>), typeof(RepositoryBase<,>));
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IImportService, ImportService>();
 builder.Services.AddScoped<IReminderService, ReminderService>();
+builder.Services.AddMemoryCache();
 builder.Services.Configure<AiPredictionOptions>(
     configuration.GetSection(AiPredictionOptions.SectionName));
 builder.Services.AddScoped<IAiPredictionService, AiPredictionService>();
